@@ -679,75 +679,95 @@ export default class backpack extends Exchange {
         //
         const result = {};
         for (let i = 0; i < response.length; i++) {
-            const currency = response[i];
-            const id = this.safeString(currency, 'symbol');
-            const code = this.safeCurrencyCode(id);
-            const tokens = this.safeValue(currency, 'tokens', []);
-            const networks = {};
-            let deposit = false;
-            let withdraw = false;
-            let fee = undefined;
-            let minWithdraw = undefined;
-            let maxWithdraw = undefined;
-            for (let j = 0; j < tokens.length; j++) {
-                const token = tokens[j];
-                const networkId = this.safeString(token, 'blockchain');
-                const networkCode = this.networkIdToCode(networkId);
-                const depositEnabled = this.safeBool(token, 'depositEnabled', false);
-                const withdrawEnabled = this.safeBool(token, 'withdrawEnabled', false);
-                if (depositEnabled) {
-                    deposit = true;
-                }
-                if (withdrawEnabled) {
-                    withdraw = true;
-                }
-                fee = this.safeNumber(token, 'withdrawalFee', fee);
-                minWithdraw = this.safeNumber(token, 'minimumWithdrawal', minWithdraw);
-                maxWithdraw = this.safeNumber(token, 'maximumWithdrawal', maxWithdraw);
-                networks[networkCode] = {
-                    'id': networkId,
-                    'network': networkCode,
-                    'deposit': depositEnabled,
-                    'withdraw': withdrawEnabled,
-                    'fee': this.safeNumber(token, 'withdrawalFee'),
-                    'precision': undefined,
-                    'limits': {
-                        'deposit': {
-                            'min': this.safeNumber(token, 'minimumDeposit'),
-                            'max': undefined,
-                        },
-                        'withdraw': {
-                            'min': this.safeNumber(token, 'minimumWithdrawal'),
-                            'max': this.safeNumber(token, 'maximumWithdrawal'),
-                        },
-                    },
-                    'info': token,
-                };
+            const currency = this.parseCurrency(response[i]);
+            const code = currency['code'];
+            result[code] = currency;
+        }
+        return result;
+    }
+    parseCurrency(currency) {
+        //
+        //     {
+        //         "symbol": "SOL",
+        //         "tokens": [
+        //             {
+        //                 "blockchain": "Solana",
+        //                 "depositEnabled": true,
+        //                 "minimumDeposit": "0.01",
+        //                 "withdrawEnabled": true,
+        //                 "minimumWithdrawal": "0.01",
+        //                 "maximumWithdrawal": "100000",
+        //                 "withdrawalFee": "0.01"
+        //             }
+        //         ]
+        //     }
+        //
+        const id = this.safeString(currency, 'symbol');
+        const code = this.safeCurrencyCode(id);
+        const tokens = this.safeValue(currency, 'tokens', []);
+        const networks = {};
+        let deposit = false;
+        let withdraw = false;
+        let fee = undefined;
+        let minWithdraw = undefined;
+        let maxWithdraw = undefined;
+        for (let j = 0; j < tokens.length; j++) {
+            const token = tokens[j];
+            const networkId = this.safeString(token, 'blockchain');
+            const networkCode = this.networkIdToCode(networkId);
+            const depositEnabled = this.safeBool(token, 'depositEnabled', false);
+            const withdrawEnabled = this.safeBool(token, 'withdrawEnabled', false);
+            if (depositEnabled) {
+                deposit = true;
             }
-            result[code] = {
-                'id': id,
-                'code': code,
-                'name': undefined,
-                'active': deposit && withdraw,
-                'deposit': deposit,
-                'withdraw': withdraw,
-                'fee': fee,
+            if (withdrawEnabled) {
+                withdraw = true;
+            }
+            fee = this.safeNumber(token, 'withdrawalFee', fee);
+            minWithdraw = this.safeNumber(token, 'minimumWithdrawal', minWithdraw);
+            maxWithdraw = this.safeNumber(token, 'maximumWithdrawal', maxWithdraw);
+            networks[networkCode] = {
+                'id': networkId,
+                'network': networkCode,
+                'deposit': depositEnabled,
+                'withdraw': withdrawEnabled,
+                'fee': this.safeNumber(token, 'withdrawalFee'),
                 'precision': undefined,
                 'limits': {
-                    'amount': {
-                        'min': undefined,
+                    'deposit': {
+                        'min': this.safeNumber(token, 'minimumDeposit'),
                         'max': undefined,
                     },
                     'withdraw': {
-                        'min': minWithdraw,
-                        'max': maxWithdraw,
+                        'min': this.safeNumber(token, 'minimumWithdrawal'),
+                        'max': this.safeNumber(token, 'maximumWithdrawal'),
                     },
                 },
-                'networks': networks,
-                'info': currency,
+                'info': token,
             };
         }
-        return result;
+        return this.safeCurrencyStructure({
+            'id': id,
+            'code': code,
+            'name': undefined,
+            'active': deposit && withdraw,
+            'deposit': deposit,
+            'withdraw': withdraw,
+            'fee': fee,
+            'precision': undefined,
+            'limits': {
+                'amount': {
+                    'min': undefined,
+                    'max': undefined,
+                },
+                'withdraw': {
+                    'min': minWithdraw,
+                    'max': maxWithdraw,
+                },
+            },
+            'networks': networks,
+            'info': currency,
+        });
     }
     sign(path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
         let url = this.urls['api'][api] + '/' + this.implodeParams(path, params);

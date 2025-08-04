@@ -19,6 +19,7 @@ export default class backpack extends Exchange {
     parseOHLCV(ohlcv: any, market?: Market): OHLCV;
     fetchTickers(symbols?: Strings, params?: {}): Promise<Tickers>;
     fetchCurrencies(params?: {}): Promise<Currencies>;
+    parseCurrency(currency: Dict): Currency;
     sign(path: string, api?: string, method?: string, params?: {}, headers?: any, body?: any): {
         url: string;
         method: string;
