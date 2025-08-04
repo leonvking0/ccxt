@@ -1,0 +1,303 @@
+// ----------------------------------------------------------------------------
+// Basic unit tests for Backpack exchange implementation
+// ----------------------------------------------------------------------------
+
+import assert from 'assert';
+import ccxt from '../../ccxt.js';
+
+// Test ED25519 signature generation
+async function testBackpackAuthentication () {
+    console.log ('Testing Backpack ED25519 authentication...');
+    
+    const exchange = new ccxt.backpack ({
+        'apiKey': 'test_public_key',
+        'secret': 'test_private_key_base64',
+    });
+    
+    // Test instruction type mapping
+    const instructionTests = [
+        { path: 'balances', method: 'GET', expected: 'balanceQuery' },
+        { path: 'orders', method: 'GET', expected: 'orderQueryAll' },
+        { path: 'orders/execute', method: 'POST', expected: 'orderExecute' },
+        { path: 'orders/{orderId}', method: 'DELETE', expected: 'orderCancel' },
+    ];
+    
+    for (const test of instructionTests) {
+        const instruction = exchange.getInstructionType (test.path, test.method);
+        assert.strictEqual (instruction, test.expected, 
+            `Instruction type for ${test.method} ${test.path} should be ${test.expected}`);
+    }
+    
+    // Test signature generation (without actual API call)
+    const message = 'instruction=balanceQuery&timestamp=1700000000000&window=5000';
+    const signature = exchange.signMessageWithEd25519 (message);
+    assert (signature, 'Signature should be generated');
+    assert (typeof signature === 'string', 'Signature should be a string');
+    assert (signature.length > 0, 'Signature should not be empty');
+    
+    console.log ('✓ Authentication tests passed');
+}
+
+// Test market parsing
+async function testBackpackMarketParsing () {
+    console.log ('Testing Backpack market parsing...');
+    
+    const exchange = new ccxt.backpack ();
+    
+    // Test spot market parsing
+    const spotMarket = {
+        'symbol': 'SOL_USDC',
+        'baseSymbol': 'SOL',
+        'quoteSymbol': 'USDC',
+        'marketType': 'Spot',
+        'baseDecimals': 9,
+        'quoteDecimals': 6,
+        'minOrderSize': '0.01',
+        'maxOrderSize': '100000',
+        'minNotional': '1',
+        'makerFee': '0.0002',
+        'takerFee': '0.0005',
+        'tickSize': '0.01',
+        'stepSize': '0.01'
+    };
+    
+    const parsedSpot = exchange.parseMarket (spotMarket);
+    assert.strictEqual (parsedSpot.symbol, 'SOL/USDC', 'Spot symbol should be SOL/USDC');
+    assert.strictEqual (parsedSpot.type, 'spot', 'Market type should be spot');
+    assert.strictEqual (parsedSpot.spot, true, 'Spot flag should be true');
+    assert.strictEqual (parsedSpot.swap, false, 'Swap flag should be false for spot');
+    
+    // Test futures market parsing
+    const futuresMarket = {
+        'symbol': 'SOL_USDC_PERP',
+        'baseSymbol': 'SOL',
+        'quoteSymbol': 'USDC',
+        'marketType': 'Futures',
+        'baseDecimals': 9,
+        'quoteDecimals': 6,
+        'minOrderSize': '0.01',
+        'maxOrderSize': '10000',
+        'minNotional': '1',
+        'makerFee': '0.0002',
+        'takerFee': '0.0005',
+        'tickSize': '0.01',
+        'stepSize': '0.01',
+        'contractSize': '1',
+        'openInterestLimit': '1000000'
+    };
+    
+    const parsedFutures = exchange.parseMarket (futuresMarket);
+    assert.strictEqual (parsedFutures.symbol, 'SOL/USDC:USDC', 'Futures symbol should be SOL/USDC:USDC');
+    assert.strictEqual (parsedFutures.type, 'swap', 'Market type should be swap');
+    assert.strictEqual (parsedFutures.spot, false, 'Spot flag should be false for futures');
+    assert.strictEqual (parsedFutures.swap, true, 'Swap flag should be true for futures');
+    assert.strictEqual (parsedFutures.linear, true, 'Linear flag should be true');
+    assert.strictEqual (parsedFutures.settle, 'USDC', 'Settle currency should be USDC');
+    
+    console.log ('✓ Market parsing tests passed');
+}
+
+// Test order parsing
+async function testBackpackOrderParsing () {
+    console.log ('Testing Backpack order parsing...');
+    
+    const exchange = new ccxt.backpack ();
+    
+    const order = {
+        'id': '111063070525358080',
+        'clientId': 'client123',
+        'symbol': 'SOL_USDC',
+        'side': 'Bid',
+        'orderType': 'Limit',
+        'timeInForce': 'GTC',
+        'price': '100',
+        'quantity': '1',
+        'executedQuantity': '0.5',
+        'executedQuoteQuantity': '50',
+        'status': 'PartiallyFilled',
+        'createdAt': 1700000000000,
+        'updatedAt': 1700000001000,
+        'selfTradePrevention': 'RejectTaker',
+        'postOnly': false
+    };
+    
+    const parsedOrder = exchange.parseOrder (order);
+    assert.strictEqual (parsedOrder.id, '111063070525358080', 'Order ID should match');
+    assert.strictEqual (parsedOrder.clientOrderId, 'client123', 'Client order ID should match');
+    assert.strictEqual (parsedOrder.side, 'buy', 'Side should be buy for Bid');
+    assert.strictEqual (parsedOrder.type, 'limit', 'Type should be limit');
+    assert.strictEqual (parsedOrder.status, 'open', 'Status should be open for PartiallyFilled');
+    assert.strictEqual (parsedOrder.price, '100', 'Price should be 100');
+    assert.strictEqual (parsedOrder.amount, '1', 'Amount should be 1');
+    assert.strictEqual (parsedOrder.filled, '0.5', 'Filled should be 0.5');
+    assert.strictEqual (parsedOrder.cost, '50', 'Cost should be 50');
+    
+    console.log ('✓ Order parsing tests passed');
+}
+
+// Test trade parsing
+async function testBackpackTradeParsing () {
+    console.log ('Testing Backpack trade parsing...');
+    
+    const exchange = new ccxt.backpack ();
+    
+    // Test public trade
+    const publicTrade = {
+        'id': '12345',
+        'price': '100.50',
+        'quantity': '1.5',
+        'quoteQuantity': '150.75',
+        'timestamp': 1700000000000,
+        'side': 'Buy',
+        'isBuyerMaker': false
+    };
+    
+    const parsedPublicTrade = exchange.parseTrade (publicTrade);
+    assert.strictEqual (parsedPublicTrade.id, '12345', 'Trade ID should match');
+    assert.strictEqual (parsedPublicTrade.side, 'buy', 'Side should be buy');
+    assert.strictEqual (parsedPublicTrade.price, '100.50', 'Price should match');
+    assert.strictEqual (parsedPublicTrade.amount, '1.5', 'Amount should match');
+    assert.strictEqual (parsedPublicTrade.cost, '150.75', 'Cost should match');
+    assert.strictEqual (parsedPublicTrade.takerOrMaker, 'taker', 'Should be taker when isBuyerMaker is false');
+    
+    // Test user trade (my trade)
+    const userTrade = {
+        'id': '567',
+        'orderId': '111063070525358080',
+        'symbol': 'SOL_USDC',
+        'side': 'Bid',
+        'price': '100.45',
+        'quantity': '0.5',
+        'quoteQuantity': '50.225',
+        'fee': '0.025',
+        'feeSymbol': 'USDC',
+        'liquidity': 'MAKER',
+        'timestamp': 1700000005000
+    };
+    
+    const parsedUserTrade = exchange.parseMyTrade (userTrade);
+    assert.strictEqual (parsedUserTrade.id, '567', 'Trade ID should match');
+    assert.strictEqual (parsedUserTrade.order, '111063070525358080', 'Order ID should match');
+    assert.strictEqual (parsedUserTrade.side, 'buy', 'Side should be buy for Bid');
+    assert.strictEqual (parsedUserTrade.takerOrMaker, 'maker', 'Should be maker when liquidity is MAKER');
+    assert.strictEqual (parsedUserTrade.fee.cost, '0.025', 'Fee cost should match');
+    assert.strictEqual (parsedUserTrade.fee.currency, 'USDC', 'Fee currency should be USDC');
+    
+    console.log ('✓ Trade parsing tests passed');
+}
+
+// Test balance parsing
+async function testBackpackBalanceParsing () {
+    console.log ('Testing Backpack balance parsing...');
+    
+    const exchange = new ccxt.backpack ();
+    
+    const balanceResponse = [
+        {
+            'symbol': 'SOL',
+            'total': '100.5',
+            'available': '90.5',
+            'locked': '10.0',
+            'staked': '0'
+        },
+        {
+            'symbol': 'USDC',
+            'total': '5000.0',
+            'available': '4500.0',
+            'locked': '500.0',
+            'staked': '0'
+        }
+    ];
+    
+    const parsedBalance = exchange.parseBalance (balanceResponse);
+    
+    assert (parsedBalance.SOL, 'SOL balance should exist');
+    assert.strictEqual (parsedBalance.SOL.free, '90.5', 'SOL free balance should be 90.5');
+    assert.strictEqual (parsedBalance.SOL.used, '10.0', 'SOL used balance should be 10.0');
+    assert.strictEqual (parsedBalance.SOL.total, '100.5', 'SOL total balance should be 100.5');
+    
+    assert (parsedBalance.USDC, 'USDC balance should exist');
+    assert.strictEqual (parsedBalance.USDC.free, '4500.0', 'USDC free balance should be 4500.0');
+    assert.strictEqual (parsedBalance.USDC.used, '500.0', 'USDC used balance should be 500.0');
+    assert.strictEqual (parsedBalance.USDC.total, '5000.0', 'USDC total balance should be 5000.0');
+    
+    console.log ('✓ Balance parsing tests passed');
+}
+
+// Test ticker parsing
+async function testBackpackTickerParsing () {
+    console.log ('Testing Backpack ticker parsing...');
+    
+    const exchange = new ccxt.backpack ();
+    
+    const ticker = {
+        'symbol': 'SOL_USDC',
+        'lastPrice': '100.50',
+        'bidPrice': '100.45',
+        'bidSize': '50.5',
+        'askPrice': '100.55',
+        'askSize': '45.2',
+        'volume': '50000',
+        'quoteVolume': '5025000',
+        'high': '105.00',
+        'low': '98.00',
+        'firstPrice': '99.00',
+        'priceChange': '1.50',
+        'priceChangePercent': '1.515',
+        'timestamp': 1700000000000
+    };
+    
+    const parsedTicker = exchange.parseTicker (ticker);
+    assert.strictEqual (parsedTicker.last, '100.50', 'Last price should be 100.50');
+    assert.strictEqual (parsedTicker.bid, '100.45', 'Bid price should be 100.45');
+    assert.strictEqual (parsedTicker.ask, '100.55', 'Ask price should be 100.55');
+    assert.strictEqual (parsedTicker.open, '99.00', 'Open price should be 99.00');
+    assert.strictEqual (parsedTicker.high, '105.00', 'High price should be 105.00');
+    assert.strictEqual (parsedTicker.low, '98.00', 'Low price should be 98.00');
+    assert.strictEqual (parsedTicker.change, '1.50', 'Price change should be 1.50');
+    assert.strictEqual (parsedTicker.percentage, '1.515', 'Price change percent should be 1.515');
+    assert.strictEqual (parsedTicker.baseVolume, '50000', 'Base volume should be 50000');
+    assert.strictEqual (parsedTicker.quoteVolume, '5025000', 'Quote volume should be 5025000');
+    
+    console.log ('✓ Ticker parsing tests passed');
+}
+
+// Main test runner
+async function runBackpackTests () {
+    console.log ('\n========================================');
+    console.log ('Running Backpack Exchange Unit Tests');
+    console.log ('========================================\n');
+    
+    try {
+        await testBackpackAuthentication ();
+        await testBackpackMarketParsing ();
+        await testBackpackOrderParsing ();
+        await testBackpackTradeParsing ();
+        await testBackpackBalanceParsing ();
+        await testBackpackTickerParsing ();
+        
+        console.log ('\n========================================');
+        console.log ('✅ All Backpack tests passed!');
+        console.log ('========================================\n');
+        
+        process.exit (0);
+    } catch (e) {
+        console.error ('\n❌ Test failed:', e);
+        process.exit (1);
+    }
+}
+
+// Run tests if this file is executed directly
+if (require.main === module) {
+    runBackpackTests ();
+}
+
+export {
+    testBackpackAuthentication,
+    testBackpackMarketParsing,
+    testBackpackOrderParsing,
+    testBackpackTradeParsing,
+    testBackpackBalanceParsing,
+    testBackpackTickerParsing,
+    runBackpackTests,
+};
