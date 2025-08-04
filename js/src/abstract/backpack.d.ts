@@ -15,7 +15,8 @@ interface Exchange {
     publicGetOpenInterest(params?: {}): Promise<implicitReturnType>;
     publicGetWallets(params?: {}): Promise<implicitReturnType>;
     privateGetAccount(params?: {}): Promise<implicitReturnType>;
-    privateGetBalances(params?: {}): Promise<implicitReturnType>;
+    privateGetCapital(params?: {}): Promise<implicitReturnType>;
+    privateGetCapitalCollateral(params?: {}): Promise<implicitReturnType>;
     privateGetDepositAddress(params?: {}): Promise<implicitReturnType>;
     privateGetOrders(params?: {}): Promise<implicitReturnType>;
     privateGetOrdersHistory(params?: {}): Promise<implicitReturnType>;
@@ -25,13 +26,11 @@ interface Exchange {
     privateGetCapitalDeposits(params?: {}): Promise<implicitReturnType>;
     privateGetCapitalWithdrawals(params?: {}): Promise<implicitReturnType>;
     privateGetCapitalDepositAddress(params?: {}): Promise<implicitReturnType>;
-    privatePostOrdersExecute(params?: {}): Promise<implicitReturnType>;
     privatePostOrders(params?: {}): Promise<implicitReturnType>;
     privatePostCapitalWithdraw(params?: {}): Promise<implicitReturnType>;
     privatePostCapitalDustConvert(params?: {}): Promise<implicitReturnType>;
     privatePutAccount(params?: {}): Promise<implicitReturnType>;
     privatePutOrdersOrderId(params?: {}): Promise<implicitReturnType>;
-    privateDeleteOrdersOrderId(params?: {}): Promise<implicitReturnType>;
     privateDeleteOrders(params?: {}): Promise<implicitReturnType>;
 }
 declare abstract class Exchange extends _Exchange {

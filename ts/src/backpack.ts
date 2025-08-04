@@ -3,7 +3,7 @@
 import Exchange from './abstract/backpack.js';
 import { ExchangeError, ArgumentsRequired, InvalidOrder, OrderNotFound, InsufficientFunds, AuthenticationError, RateLimitExceeded, PermissionDenied, BadRequest, BadSymbol, AccountSuspended, InvalidNonce, NotSupported, OnMaintenance } from './base/errors.js';
 import { ed25519 } from './static_dependencies/noble-curves/ed25519.js';
-import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int } from './base/types.js';
+import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int, OHLCV, Strings, Tickers, Currencies, Transaction } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -544,6 +544,223 @@ export default class backpack extends Exchange {
             'cost': costString,
             'fee': undefined,
         }, market);
+    }
+
+    async fetchOHLCV (symbol: string, timeframe = '1m', since: Int = undefined, limit: Int = undefined, params = {}): Promise<OHLCV[]> {
+        /**
+         * @method
+         * @name backpack#fetchOHLCV
+         * @description fetches historical candlestick data containing the open, high, low, and close price, and the volume of a market
+         * @see https://docs.backpack.exchange/#tag/MarketData/operation/get_klines
+         * @param {string} symbol unified symbol of the market to fetch OHLCV data for
+         * @param {string} timeframe the length of time each candle represents
+         * @param {int} [since] timestamp in ms of the earliest candle to fetch
+         * @param {int} [limit] the maximum amount of candles to fetch
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
+         */
+        await this.loadMarkets ();
+        const market = this.market (symbol);
+        const request: Dict = {
+            'symbol': market['id'],
+            'interval': this.safeString (this.timeframes, timeframe, timeframe),
+        };
+        // startTime is required - use since if provided, otherwise use 1 hour ago
+        const now = this.milliseconds ();
+        let startTime = since;
+        if (startTime === undefined) {
+            startTime = now - 3600000; // Default to 1 hour ago
+        }
+        // Convert milliseconds to seconds for the API
+        request['startTime'] = Math.floor (startTime / 1000);
+        
+        // If limit is specified, calculate endTime based on timeframe
+        if (limit !== undefined) {
+            const duration = this.parseTimeframe (timeframe) * 1000; // Convert to milliseconds
+            const endTime = startTime + (limit * duration);
+            request['endTime'] = Math.floor (Math.min (endTime, now) / 1000);
+        }
+        
+        const response = await this.publicGetKlines (this.extend (request, params));
+        //
+        //     [
+        //         {
+        //             "start": 1700000000,
+        //             "open": "100.00",
+        //             "high": "105.00",
+        //             "low": "99.00",
+        //             "close": "103.00",
+        //             "volume": "1000.00",
+        //             "end": 1700060000,
+        //             "trades": 150
+        //         }
+        //     ]
+        //
+        return this.parseOHLCVs (response, market, timeframe, since, limit);
+    }
+
+    parseOHLCV (ohlcv, market: Market = undefined): OHLCV {
+        //
+        //     {
+        //         "start": "2025-08-04 20:00:00",
+        //         "open": "100.00",
+        //         "high": "105.00",
+        //         "low": "99.00",
+        //         "close": "103.00",
+        //         "volume": "1000.00",
+        //         "end": "2025-08-04 21:00:00",
+        //         "trades": 150
+        //     }
+        //
+        // The API returns date strings, convert to timestamp
+        const dateString = this.safeString (ohlcv, 'start');
+        const timestamp = this.parse8601 (dateString + 'Z'); // Add Z for UTC
+        return [
+            timestamp,
+            this.safeNumber (ohlcv, 'open'),
+            this.safeNumber (ohlcv, 'high'),
+            this.safeNumber (ohlcv, 'low'),
+            this.safeNumber (ohlcv, 'close'),
+            this.safeNumber (ohlcv, 'volume'),
+        ];
+    }
+
+    async fetchTickers (symbols: Strings = undefined, params = {}): Promise<Tickers> {
+        /**
+         * @method
+         * @name backpack#fetchTickers
+         * @description fetches price tickers for multiple markets, statistical information calculated over the past 24 hours for each market
+         * @see https://docs.backpack.exchange/#tag/MarketData/operation/get_tickers
+         * @param {string[]|undefined} symbols unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a dictionary of [ticker structures]{@link https://docs.ccxt.com/#/?id=ticker-structure}
+         */
+        await this.loadMarkets ();
+        const response = await this.publicGetTickers (params);
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC",
+        //             "firstPrice": "99.00",
+        //             "lastPrice": "100.50",
+        //             "priceChange": "1.50",
+        //             "priceChangePercent": "1.515",
+        //             "high": "105.00",
+        //             "low": "98.00",
+        //             "volume": "50000",
+        //             "quoteVolume": "5025000",
+        //             "trades": 1250,
+        //             "bidPrice": "100.45",
+        //             "bidSize": "100",
+        //             "askPrice": "100.55",
+        //             "askSize": "150",
+        //             "prevDayClosePrice": "99.00",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTickers (response, symbols);
+    }
+
+    async fetchCurrencies (params = {}): Promise<Currencies> {
+        /**
+         * @method
+         * @name backpack#fetchCurrencies
+         * @description fetches all available currencies on an exchange
+         * @see https://docs.backpack.exchange/#tag/Assets/operation/get_assets
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an associative dictionary of currencies
+         */
+        const response = await this.publicGetAssets (params);
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL",
+        //             "tokens": [
+        //                 {
+        //                     "blockchain": "Solana",
+        //                     "depositEnabled": true,
+        //                     "minimumDeposit": "0.01",
+        //                     "withdrawEnabled": true,
+        //                     "minimumWithdrawal": "0.01",
+        //                     "maximumWithdrawal": "100000",
+        //                     "withdrawalFee": "0.01"
+        //                 }
+        //             ]
+        //         }
+        //     ]
+        //
+        const result: Dict = {};
+        for (let i = 0; i < response.length; i++) {
+            const currency = response[i];
+            const id = this.safeString (currency, 'symbol');
+            const code = this.safeCurrencyCode (id);
+            const tokens = this.safeValue (currency, 'tokens', []);
+            const networks: Dict = {};
+            let deposit = false;
+            let withdraw = false;
+            let fee = undefined;
+            let minWithdraw = undefined;
+            let maxWithdraw = undefined;
+            for (let j = 0; j < tokens.length; j++) {
+                const token = tokens[j];
+                const networkId = this.safeString (token, 'blockchain');
+                const networkCode = this.networkIdToCode (networkId);
+                const depositEnabled = this.safeBool (token, 'depositEnabled', false);
+                const withdrawEnabled = this.safeBool (token, 'withdrawEnabled', false);
+                if (depositEnabled) {
+                    deposit = true;
+                }
+                if (withdrawEnabled) {
+                    withdraw = true;
+                }
+                fee = this.safeNumber (token, 'withdrawalFee', fee);
+                minWithdraw = this.safeNumber (token, 'minimumWithdrawal', minWithdraw);
+                maxWithdraw = this.safeNumber (token, 'maximumWithdrawal', maxWithdraw);
+                networks[networkCode] = {
+                    'id': networkId,
+                    'network': networkCode,
+                    'deposit': depositEnabled,
+                    'withdraw': withdrawEnabled,
+                    'fee': this.safeNumber (token, 'withdrawalFee'),
+                    'precision': undefined,
+                    'limits': {
+                        'deposit': {
+                            'min': this.safeNumber (token, 'minimumDeposit'),
+                            'max': undefined,
+                        },
+                        'withdraw': {
+                            'min': this.safeNumber (token, 'minimumWithdrawal'),
+                            'max': this.safeNumber (token, 'maximumWithdrawal'),
+                        },
+                    },
+                    'info': token,
+                };
+            }
+            result[code] = {
+                'id': id,
+                'code': code,
+                'name': undefined,
+                'active': deposit && withdraw,
+                'deposit': deposit,
+                'withdraw': withdraw,
+                'fee': fee,
+                'precision': undefined,
+                'limits': {
+                    'amount': {
+                        'min': undefined,
+                        'max': undefined,
+                    },
+                    'withdraw': {
+                        'min': minWithdraw,
+                        'max': maxWithdraw,
+                    },
+                },
+                'networks': networks,
+                'info': currency,
+            };
+        }
+        return result;
     }
 
     sign (path: string, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
@@ -1089,5 +1306,322 @@ export default class backpack extends Exchange {
             'Expired': 'expired',
         };
         return this.safeString (statuses, status, status);
+    }
+
+    async fetchOrders (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Order[]> {
+        /**
+         * @method
+         * @name backpack#fetchOrders
+         * @description fetches information on multiple orders made by the user
+         * @see https://docs.backpack.exchange/#tag/History/operation/get_order_history
+         * @param {string} symbol unified market symbol of the market orders were made in
+         * @param {int} [since] the earliest time in ms to fetch orders for
+         * @param {int} [limit] the maximum number of order structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {};
+        let market = undefined;
+        if (symbol !== undefined) {
+            market = this.market (symbol);
+            request['symbol'] = market['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetOrdersHistory (this.extend (request, params));
+        //
+        //     [
+        //         {
+        //             "id": "111063070525358080",
+        //             "clientId": "client123",
+        //             "symbol": "SOL_USDC",
+        //             "side": "Bid",
+        //             "orderType": "Limit",
+        //             "timeInForce": "GTC",
+        //             "price": "100",
+        //             "quantity": "1",
+        //             "executedQuantity": "1",
+        //             "executedQuoteQuantity": "100",
+        //             "status": "Filled",
+        //             "createdAt": 1700000000000,
+        //             "updatedAt": 1700000005000
+        //         }
+        //     ]
+        //
+        return this.parseOrders (response, market, since, limit);
+    }
+
+    async fetchClosedOrders (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Order[]> {
+        /**
+         * @method
+         * @name backpack#fetchClosedOrders
+         * @description fetches information on multiple closed orders made by the user
+         * @param {string} symbol unified market symbol of the market orders were made in
+         * @param {int} [since] the earliest time in ms to fetch orders for
+         * @param {int} [limit] the maximum number of order structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        const orders = await this.fetchOrders (symbol, since, limit, params);
+        return this.filterByArray (orders, 'status', 'closed', false);
+    }
+
+    async fetchOrder (id: string, symbol: Str = undefined, params = {}): Promise<Order> {
+        /**
+         * @method
+         * @name backpack#fetchOrder
+         * @description fetches information on an order made by the user
+         * @param {string} id the order id
+         * @param {string} symbol unified symbol of the market the order was made in
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} An [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {
+            'orderId': id,
+        };
+        const orders = await this.fetchOrders (symbol, undefined, undefined, this.extend (request, params));
+        const numOrders = orders.length;
+        if (numOrders === 0) {
+            throw new OrderNotFound (this.id + ' order ' + id + ' not found');
+        }
+        return this.safeValue (orders, 0);
+    }
+
+    async fetchDeposits (code: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Transaction[]> {
+        /**
+         * @method
+         * @name backpack#fetchDeposits
+         * @description fetch all deposits made to an account
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/get_deposits
+         * @param {string} code unified currency code
+         * @param {int} [since] the earliest time in ms to fetch deposits for
+         * @param {int} [limit] the maximum number of deposits structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [transaction structures]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency (code);
+            request['symbol'] = currency['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetCapitalDeposits (this.extend (request, params));
+        //
+        //     [
+        //         {
+        //             "id": "dep123",
+        //             "toAddress": "0x1234...",
+        //             "fromAddress": "0x5678...",
+        //             "confirmations": 12,
+        //             "requiredConfirmations": 10,
+        //             "symbol": "USDC",
+        //             "amount": "100",
+        //             "fee": "0",
+        //             "status": "Confirmed",
+        //             "transactionHash": "0xabc...",
+        //             "blockchainId": "Ethereum",
+        //             "createdAt": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTransactions (response, currency, since, limit, { 'type': 'deposit' });
+    }
+
+    async fetchWithdrawals (code: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Transaction[]> {
+        /**
+         * @method
+         * @name backpack#fetchWithdrawals
+         * @description fetch all withdrawals made from an account
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/get_withdrawals
+         * @param {string} code unified currency code
+         * @param {int} [since] the earliest time in ms to fetch withdrawals for
+         * @param {int} [limit] the maximum number of withdrawals structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [transaction structures]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency (code);
+            request['symbol'] = currency['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetCapitalWithdrawals (this.extend (request, params));
+        //
+        //     [
+        //         {
+        //             "id": "wit123",
+        //             "toAddress": "0x1234...",
+        //             "symbol": "USDC",
+        //             "amount": "50",
+        //             "fee": "1",
+        //             "status": "Confirmed",
+        //             "transactionHash": "0xdef...",
+        //             "blockchainId": "Ethereum",
+        //             "createdAt": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTransactions (response, currency, since, limit, { 'type': 'withdrawal' });
+    }
+
+    parseTransaction (transaction: Dict, currency: Currency = undefined): Transaction {
+        //
+        // deposit
+        //     {
+        //         "id": "dep123",
+        //         "toAddress": "0x1234...",
+        //         "fromAddress": "0x5678...",
+        //         "confirmations": 12,
+        //         "requiredConfirmations": 10,
+        //         "symbol": "USDC",
+        //         "amount": "100",
+        //         "fee": "0",
+        //         "status": "Confirmed",
+        //         "transactionHash": "0xabc...",
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000000000
+        //     }
+        //
+        // withdrawal
+        //     {
+        //         "id": "wit123",
+        //         "toAddress": "0x1234...",
+        //         "symbol": "USDC",
+        //         "amount": "50",
+        //         "fee": "1",
+        //         "status": "Confirmed",
+        //         "transactionHash": "0xdef...",
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000000000
+        //     }
+        //
+        const id = this.safeString (transaction, 'id');
+        const txid = this.safeString (transaction, 'transactionHash');
+        const timestamp = this.safeInteger (transaction, 'createdAt');
+        const currencyId = this.safeString (transaction, 'symbol');
+        const code = this.safeCurrencyCode (currencyId, currency);
+        const status = this.parseTransactionStatus (this.safeString (transaction, 'status'));
+        const amount = this.safeNumber (transaction, 'amount');
+        const toAddress = this.safeString (transaction, 'toAddress');
+        const fromAddress = this.safeString (transaction, 'fromAddress');
+        const fee = {
+            'currency': code,
+            'cost': this.safeNumber (transaction, 'fee'),
+        };
+        const networkId = this.safeString (transaction, 'blockchainId');
+        const network = this.networkIdToCode (networkId);
+        return {
+            'id': id,
+            'txid': txid,
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'network': network,
+            'address': toAddress,
+            'addressTo': toAddress,
+            'addressFrom': fromAddress,
+            'tag': undefined,
+            'tagTo': undefined,
+            'tagFrom': undefined,
+            'type': undefined,
+            'amount': amount,
+            'currency': code,
+            'status': status,
+            'updated': undefined,
+            'internal': false,
+            'comment': undefined,
+            'fee': fee,
+            'info': transaction,
+        };
+    }
+
+    parseTransactionStatus (status: Str): string {
+        const statuses: Dict = {
+            'Pending': 'pending',
+            'Confirmed': 'ok',
+            'Completed': 'ok',
+            'Failed': 'failed',
+            'Cancelled': 'canceled',
+            'Rejected': 'rejected',
+        };
+        return this.safeString (statuses, status, status);
+    }
+
+    async withdraw (code: string, amount: number, address: string, tag: Str = undefined, params = {}): Promise<Transaction> {
+        /**
+         * @method
+         * @name backpack#withdraw
+         * @description make a withdrawal
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/request_withdrawal
+         * @param {string} code unified currency code
+         * @param {float} amount the amount to withdraw
+         * @param {string} address the address to withdraw to
+         * @param {string} tag
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [transaction structure]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        [ tag, params ] = this.handleWithdrawTagAndParams (tag, params);
+        await this.loadMarkets ();
+        const currency = this.currency (code);
+        const request: Dict = {
+            'address': address,
+            'symbol': currency['id'],
+            'quantity': this.currencyToPrecision (code, amount),
+        };
+        const networks = this.safeDict (currency, 'networks');
+        const network = this.safeString (params, 'network');
+        params = this.omit (params, 'network');
+        let networkId = undefined;
+        if (network !== undefined) {
+            const networkItem = this.safeDict (networks, network, {});
+            networkId = this.safeString (networkItem, 'id');
+        } else if (networks !== undefined) {
+            const networkKeys = Object.keys (networks);
+            const numNetworks = networkKeys.length;
+            if (numNetworks === 1) {
+                const networkItem = this.safeDict (networks, networkKeys[0], {});
+                networkId = this.safeString (networkItem, 'id');
+            }
+        }
+        if (networkId !== undefined) {
+            request['blockchain'] = networkId;
+        }
+        if (tag !== undefined) {
+            request['memo'] = tag;
+        }
+        const response = await this.privatePostCapitalWithdraw (this.extend (request, params));
+        //
+        //     {
+        //         "id": "wit456",
+        //         "toAddress": "0x1234...",
+        //         "symbol": "USDC",
+        //         "amount": "50",
+        //         "fee": "1",
+        //         "status": "Pending",
+        //         "transactionHash": null,
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000010000
+        //     }
+        //
+        return this.parseTransaction (response, currency);
     }
 }

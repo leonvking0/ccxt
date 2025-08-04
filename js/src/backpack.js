@@ -103,7 +103,8 @@ export default class backpack extends Exchange {
                 'private': {
                     'get': {
                         'account': 1,
-                        'balances': 1,
+                        'capital': 1,
+                        'capital/collateral': 1,
                         'depositAddress': 1,
                         'orders': 1,
                         'orders/history': 1,
@@ -115,7 +116,6 @@ export default class backpack extends Exchange {
                         'capital/deposit-address': 1,
                     },
                     'post': {
-                        'orders/execute': 1,
                         'orders': 1,
                         'capital/withdraw': 1,
                         'capital/dust/convert': 1,
@@ -125,8 +125,8 @@ export default class backpack extends Exchange {
                         'orders/{orderId}': 1,
                     },
                     'delete': {
-                        'orders/{orderId}': 1,
-                        'orders': 1,
+                        'order': 1,
+                        'orders': 1, // cancel all orders
                     },
                 },
             },
@@ -169,7 +169,8 @@ export default class backpack extends Exchange {
                 'instructionTypes': {
                     // Map endpoints to instruction types
                     'GET:account': 'accountQuery',
-                    'GET:balances': 'balanceQuery',
+                    'GET:capital': 'balanceQuery',
+                    'GET:capital/collateral': 'collateralQuery',
                     'GET:orders': 'orderQueryAll',
                     'GET:orders/history': 'orderHistoryQueryAll',
                     'GET:order': 'orderQuery',
@@ -178,10 +179,9 @@ export default class backpack extends Exchange {
                     'GET:capital/deposits': 'depositQueryAll',
                     'GET:capital/withdrawals': 'withdrawalQueryAll',
                     'GET:capital/deposit-address': 'depositAddressQuery',
-                    'POST:orders/execute': 'orderExecute',
                     'POST:orders': 'orderExecute',
                     'POST:capital/withdraw': 'withdraw',
-                    'DELETE:orders/{orderId}': 'orderCancel',
+                    'DELETE:order': 'orderCancel',
                     'DELETE:orders': 'orderCancelAll',
                 },
             },
@@ -285,11 +285,19 @@ export default class backpack extends Exchange {
         const base = this.safeCurrencyCode(baseId);
         const quote = this.safeCurrencyCode(quoteId);
         const marketType = this.safeString(market, 'marketType');
-        const spot = (marketType === 'Spot');
-        const futures = (marketType === 'Futures');
+        const spot = (marketType === 'SPOT');
+        const futures = (marketType === 'FUTURES' || marketType === 'PERP');
         const symbol = base + '/' + quote + (futures ? ':' + quote : '');
         const maker = this.safeNumber(market, 'makerFee');
         const taker = this.safeNumber(market, 'takerFee');
+        // Extract filters for price and quantity
+        const filters = this.safeDict(market, 'filters', {});
+        const priceFilter = this.safeDict(filters, 'price', {});
+        const quantityFilter = this.safeDict(filters, 'quantity', {});
+        const tickSize = this.safeString(priceFilter, 'tickSize');
+        const stepSize = this.safeString(quantityFilter, 'stepSize');
+        const minQuantity = this.safeString(quantityFilter, 'minQuantity');
+        const maxQuantity = this.safeString(quantityFilter, 'maxQuantity');
         return this.safeMarketStructure({
             'id': id,
             'symbol': symbol,
@@ -316,17 +324,17 @@ export default class backpack extends Exchange {
             'tierBased': false,
             'feeSide': 'quote',
             'precision': {
-                'amount': this.parseNumber(this.parsePrecision(this.safeString(market, 'stepSize'))),
-                'price': this.parseNumber(this.parsePrecision(this.safeString(market, 'tickSize'))),
+                'amount': stepSize ? this.parseNumber(stepSize) : undefined,
+                'price': tickSize ? this.parseNumber(tickSize) : undefined,
             },
             'limits': {
                 'amount': {
-                    'min': this.safeNumber(market, 'minOrderSize'),
-                    'max': this.safeNumber(market, 'maxOrderSize'),
+                    'min': this.safeNumber2(market, 'minOrderSize', minQuantity),
+                    'max': this.safeNumber2(market, 'maxOrderSize', maxQuantity),
                 },
                 'price': {
-                    'min': undefined,
-                    'max': undefined,
+                    'min': this.safeNumber(priceFilter, 'minPrice'),
+                    'max': this.safeNumber(priceFilter, 'maxPrice'),
                 },
                 'cost': {
                     'min': this.safeNumber(market, 'minNotional'),
@@ -530,6 +538,217 @@ export default class backpack extends Exchange {
             'fee': undefined,
         }, market);
     }
+    async fetchOHLCV(symbol, timeframe = '1m', since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchOHLCV
+         * @description fetches historical candlestick data containing the open, high, low, and close price, and the volume of a market
+         * @see https://docs.backpack.exchange/#tag/MarketData/operation/get_klines
+         * @param {string} symbol unified symbol of the market to fetch OHLCV data for
+         * @param {string} timeframe the length of time each candle represents
+         * @param {int} [since] timestamp in ms of the earliest candle to fetch
+         * @param {int} [limit] the maximum amount of candles to fetch
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {int[][]} A list of candles ordered as timestamp, open, high, low, close, volume
+         */
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'symbol': market['id'],
+            'interval': this.safeString(this.timeframes, timeframe, timeframe),
+        };
+        // startTime is required - use since if provided, otherwise use 1 hour ago
+        const now = this.milliseconds();
+        let startTime = since;
+        if (startTime === undefined) {
+            startTime = now - 3600000; // Default to 1 hour ago
+        }
+        // Convert milliseconds to seconds for the API
+        request['startTime'] = Math.floor(startTime / 1000);
+        // If limit is specified, calculate endTime based on timeframe
+        if (limit !== undefined) {
+            const duration = this.parseTimeframe(timeframe) * 1000; // Convert to milliseconds
+            const endTime = startTime + (limit * duration);
+            request['endTime'] = Math.floor(Math.min(endTime, now) / 1000);
+        }
+        const response = await this.publicGetKlines(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "start": 1700000000,
+        //             "open": "100.00",
+        //             "high": "105.00",
+        //             "low": "99.00",
+        //             "close": "103.00",
+        //             "volume": "1000.00",
+        //             "end": 1700060000,
+        //             "trades": 150
+        //         }
+        //     ]
+        //
+        return this.parseOHLCVs(response, market, timeframe, since, limit);
+    }
+    parseOHLCV(ohlcv, market = undefined) {
+        //
+        //     {
+        //         "start": "2025-08-04 20:00:00",
+        //         "open": "100.00",
+        //         "high": "105.00",
+        //         "low": "99.00",
+        //         "close": "103.00",
+        //         "volume": "1000.00",
+        //         "end": "2025-08-04 21:00:00",
+        //         "trades": 150
+        //     }
+        //
+        // The API returns date strings, convert to timestamp
+        const dateString = this.safeString(ohlcv, 'start');
+        const timestamp = this.parse8601(dateString + 'Z'); // Add Z for UTC
+        return [
+            timestamp,
+            this.safeNumber(ohlcv, 'open'),
+            this.safeNumber(ohlcv, 'high'),
+            this.safeNumber(ohlcv, 'low'),
+            this.safeNumber(ohlcv, 'close'),
+            this.safeNumber(ohlcv, 'volume'),
+        ];
+    }
+    async fetchTickers(symbols = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchTickers
+         * @description fetches price tickers for multiple markets, statistical information calculated over the past 24 hours for each market
+         * @see https://docs.backpack.exchange/#tag/MarketData/operation/get_tickers
+         * @param {string[]|undefined} symbols unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a dictionary of [ticker structures]{@link https://docs.ccxt.com/#/?id=ticker-structure}
+         */
+        await this.loadMarkets();
+        const response = await this.publicGetTickers(params);
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC",
+        //             "firstPrice": "99.00",
+        //             "lastPrice": "100.50",
+        //             "priceChange": "1.50",
+        //             "priceChangePercent": "1.515",
+        //             "high": "105.00",
+        //             "low": "98.00",
+        //             "volume": "50000",
+        //             "quoteVolume": "5025000",
+        //             "trades": 1250,
+        //             "bidPrice": "100.45",
+        //             "bidSize": "100",
+        //             "askPrice": "100.55",
+        //             "askSize": "150",
+        //             "prevDayClosePrice": "99.00",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTickers(response, symbols);
+    }
+    async fetchCurrencies(params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchCurrencies
+         * @description fetches all available currencies on an exchange
+         * @see https://docs.backpack.exchange/#tag/Assets/operation/get_assets
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} an associative dictionary of currencies
+         */
+        const response = await this.publicGetAssets(params);
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL",
+        //             "tokens": [
+        //                 {
+        //                     "blockchain": "Solana",
+        //                     "depositEnabled": true,
+        //                     "minimumDeposit": "0.01",
+        //                     "withdrawEnabled": true,
+        //                     "minimumWithdrawal": "0.01",
+        //                     "maximumWithdrawal": "100000",
+        //                     "withdrawalFee": "0.01"
+        //                 }
+        //             ]
+        //         }
+        //     ]
+        //
+        const result = {};
+        for (let i = 0; i < response.length; i++) {
+            const currency = response[i];
+            const id = this.safeString(currency, 'symbol');
+            const code = this.safeCurrencyCode(id);
+            const tokens = this.safeValue(currency, 'tokens', []);
+            const networks = {};
+            let deposit = false;
+            let withdraw = false;
+            let fee = undefined;
+            let minWithdraw = undefined;
+            let maxWithdraw = undefined;
+            for (let j = 0; j < tokens.length; j++) {
+                const token = tokens[j];
+                const networkId = this.safeString(token, 'blockchain');
+                const networkCode = this.networkIdToCode(networkId);
+                const depositEnabled = this.safeBool(token, 'depositEnabled', false);
+                const withdrawEnabled = this.safeBool(token, 'withdrawEnabled', false);
+                if (depositEnabled) {
+                    deposit = true;
+                }
+                if (withdrawEnabled) {
+                    withdraw = true;
+                }
+                fee = this.safeNumber(token, 'withdrawalFee', fee);
+                minWithdraw = this.safeNumber(token, 'minimumWithdrawal', minWithdraw);
+                maxWithdraw = this.safeNumber(token, 'maximumWithdrawal', maxWithdraw);
+                networks[networkCode] = {
+                    'id': networkId,
+                    'network': networkCode,
+                    'deposit': depositEnabled,
+                    'withdraw': withdrawEnabled,
+                    'fee': this.safeNumber(token, 'withdrawalFee'),
+                    'precision': undefined,
+                    'limits': {
+                        'deposit': {
+                            'min': this.safeNumber(token, 'minimumDeposit'),
+                            'max': undefined,
+                        },
+                        'withdraw': {
+                            'min': this.safeNumber(token, 'minimumWithdrawal'),
+                            'max': this.safeNumber(token, 'maximumWithdrawal'),
+                        },
+                    },
+                    'info': token,
+                };
+            }
+            result[code] = {
+                'id': id,
+                'code': code,
+                'name': undefined,
+                'active': deposit && withdraw,
+                'deposit': deposit,
+                'withdraw': withdraw,
+                'fee': fee,
+                'precision': undefined,
+                'limits': {
+                    'amount': {
+                        'min': undefined,
+                        'max': undefined,
+                    },
+                    'withdraw': {
+                        'min': minWithdraw,
+                        'max': maxWithdraw,
+                    },
+                },
+                'networks': networks,
+                'info': currency,
+            };
+        }
+        return result;
+    }
     sign(path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
         let url = this.urls['api'][api] + '/' + this.implodeParams(path, params);
         const query = this.omit(params, this.extractParams(path));
@@ -546,7 +765,7 @@ export default class backpack extends Exchange {
             // Get instruction type for this endpoint
             const instruction = this.getInstructionType(path, method);
             let queryString = '';
-            if (method === 'GET' || method === 'DELETE') {
+            if (method === 'GET') {
                 if (Object.keys(query).length) {
                     // Sort parameters alphabetically
                     const sortedQuery = this.keysort(query);
@@ -554,8 +773,29 @@ export default class backpack extends Exchange {
                     url += '?' + queryString;
                 }
             }
-            else {
+            else if (method === 'DELETE') {
+                // For DELETE, pass parameters in body
                 if (Object.keys(query).length) {
+                    const sortedQuery = this.keysort(query);
+                    queryString = this.urlencode(sortedQuery);
+                    body = this.json(query);
+                }
+            }
+            else {
+                // Handle batch orders (array) differently
+                if (Array.isArray(query)) {
+                    // For batch orders, each order needs its own instruction prefix
+                    const orderStrings = [];
+                    for (let i = 0; i < query.length; i++) {
+                        const order = query[i];
+                        const sortedOrder = this.keysort(order);
+                        const orderQuery = this.urlencode(sortedOrder);
+                        orderStrings.push('instruction=' + instruction + '&' + orderQuery);
+                    }
+                    queryString = orderStrings.join('&');
+                    body = this.json(query);
+                }
+                else if (Object.keys(query).length) {
                     // Sort parameters alphabetically
                     const sortedQuery = this.keysort(query);
                     queryString = this.urlencode(sortedQuery);
@@ -563,9 +803,16 @@ export default class backpack extends Exchange {
                 }
             }
             // Build signature payload
-            let signaturePayload = 'instruction=' + instruction;
-            if (queryString) {
-                signaturePayload += '&' + queryString;
+            let signaturePayload = '';
+            if (Array.isArray(query)) {
+                // For batch orders, queryString already contains the instruction prefixes
+                signaturePayload = queryString;
+            }
+            else {
+                signaturePayload = 'instruction=' + instruction;
+                if (queryString) {
+                    signaturePayload += '&' + queryString;
+                }
             }
             signaturePayload += '&timestamp=' + timestamp.toString();
             signaturePayload += '&window=' + window.toString();
@@ -631,7 +878,7 @@ export default class backpack extends Exchange {
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets();
-        const response = await this.privateGetBalances(params);
+        const response = await this.privateGetCapital(params);
         //
         //     [
         //         {
@@ -649,17 +896,74 @@ export default class backpack extends Exchange {
         const result = {
             'info': response,
         };
-        for (let i = 0; i < response.length; i++) {
-            const balance = response[i];
-            const currencyId = this.safeString(balance, 'symbol');
-            const code = this.safeCurrencyCode(currencyId);
-            const account = this.account();
-            account['free'] = this.safeString(balance, 'available');
-            account['used'] = this.safeString(balance, 'locked');
-            account['total'] = this.safeString(balance, 'total');
-            result[code] = account;
+        // Handle array of balances from /capital/balances endpoint
+        if (Array.isArray(response)) {
+            for (let i = 0; i < response.length; i++) {
+                const balance = response[i];
+                const currencyId = this.safeString(balance, 'symbol');
+                const code = this.safeCurrencyCode(currencyId);
+                const account = this.account();
+                account['free'] = this.safeString(balance, 'available');
+                account['used'] = this.safeString(balance, 'locked');
+                account['total'] = this.safeString(balance, 'total');
+                result[code] = account;
+            }
         }
         return this.safeBalance(result);
+    }
+    async fetchCollateral(params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchCollateral
+         * @description fetches the margin/collateral status for cross-margin trading
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a collateral structure with margin and risk information
+         */
+        await this.loadMarkets();
+        const response = await this.privateGetCapitalCollateral(params);
+        //
+        //     {
+        //         "netEquity": "1000.00",
+        //         "netEquityAvailable": "500.00",
+        //         "collateral": [
+        //             {
+        //                 "symbol": "SOL",
+        //                 "totalQuantity": "10.5",
+        //                 "availableQuantity": "8.0",
+        //                 "collateralWeight": "0.9",
+        //                 "collateralValue": "945.00",
+        //                 "openOrderQuantity": "2.5",
+        //                 "lendQuantity": "0"
+        //             }
+        //         ]
+        //     }
+        //
+        return this.parseCollateral(response);
+    }
+    parseCollateral(response) {
+        const netEquity = this.safeString(response, 'netEquity');
+        const netEquityAvailable = this.safeString(response, 'netEquityAvailable');
+        const collateralArray = this.safeList(response, 'collateral', []);
+        const result = {
+            'info': response,
+            'netEquity': this.parseNumber(netEquity),
+            'netEquityAvailable': this.parseNumber(netEquityAvailable),
+            'collateral': {},
+        };
+        for (let i = 0; i < collateralArray.length; i++) {
+            const item = collateralArray[i];
+            const currencyId = this.safeString(item, 'symbol');
+            const code = this.safeCurrencyCode(currencyId);
+            result['collateral'][code] = {
+                'total': this.safeNumber(item, 'totalQuantity'),
+                'available': this.safeNumber(item, 'availableQuantity'),
+                'collateralWeight': this.safeNumber(item, 'collateralWeight'),
+                'collateralValue': this.safeNumber(item, 'collateralValue'),
+                'openOrders': this.safeNumber(item, 'openOrderQuantity'),
+                'lent': this.safeNumber(item, 'lendQuantity'),
+            };
+        }
+        return result;
     }
     async createOrder(symbol, type, side, amount, price = undefined, params = {}) {
         /**
@@ -694,9 +998,13 @@ export default class backpack extends Exchange {
         }
         const timeInForce = this.safeString(params, 'timeInForce', 'GTC');
         request['timeInForce'] = timeInForce;
-        const response = await this.privatePostOrdersExecute(this.extend(request, params));
+        // The API expects an array for the batch endpoint
+        const requestArray = [this.extend(request, params)];
+        const responseArray = await this.privatePostOrders(requestArray);
+        // Response is an array since we sent a batch
+        const response = this.safeDict(responseArray, 0);
         //
-        //     {
+        //     [{
         //         "id": "111063070525358080",
         //         "clientId": "client123",
         //         "symbol": "SOL_USDC",
@@ -712,7 +1020,7 @@ export default class backpack extends Exchange {
         //         "updatedAt": 1700000000000,
         //         "selfTradePrevention": "RejectTaker",
         //         "postOnly": false
-        //     }
+        //     }]
         //
         return this.parseOrder(response, market);
     }
@@ -735,8 +1043,26 @@ export default class backpack extends Exchange {
             'orderId': id,
             'symbol': market['id'],
         };
-        const response = await this.privateDeleteOrdersOrderId(this.extend(request, params));
+        const response = await this.privateDeleteOrder(this.extend(request, params));
         return this.parseOrder(response, market);
+    }
+    async cancelAllOrders(symbol = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#cancelAllOrders
+         * @description cancel all open orders in a market
+         * @param {string} symbol unified symbol of the market to cancel orders in
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const request = {};
+        if (symbol !== undefined) {
+            const market = this.market(symbol);
+            request['symbol'] = market['id'];
+        }
+        const response = await this.privateDeleteOrders(this.extend(request, params));
+        return response;
     }
     async fetchOpenOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
         /**
@@ -955,5 +1281,315 @@ export default class backpack extends Exchange {
             'Expired': 'expired',
         };
         return this.safeString(statuses, status, status);
+    }
+    async fetchOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchOrders
+         * @description fetches information on multiple orders made by the user
+         * @see https://docs.backpack.exchange/#tag/History/operation/get_order_history
+         * @param {string} symbol unified market symbol of the market orders were made in
+         * @param {int} [since] the earliest time in ms to fetch orders for
+         * @param {int} [limit] the maximum number of order structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const request = {};
+        let market = undefined;
+        if (symbol !== undefined) {
+            market = this.market(symbol);
+            request['symbol'] = market['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetOrdersHistory(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "id": "111063070525358080",
+        //             "clientId": "client123",
+        //             "symbol": "SOL_USDC",
+        //             "side": "Bid",
+        //             "orderType": "Limit",
+        //             "timeInForce": "GTC",
+        //             "price": "100",
+        //             "quantity": "1",
+        //             "executedQuantity": "1",
+        //             "executedQuoteQuantity": "100",
+        //             "status": "Filled",
+        //             "createdAt": 1700000000000,
+        //             "updatedAt": 1700000005000
+        //         }
+        //     ]
+        //
+        return this.parseOrders(response, market, since, limit);
+    }
+    async fetchClosedOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchClosedOrders
+         * @description fetches information on multiple closed orders made by the user
+         * @param {string} symbol unified market symbol of the market orders were made in
+         * @param {int} [since] the earliest time in ms to fetch orders for
+         * @param {int} [limit] the maximum number of order structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {Order[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        const orders = await this.fetchOrders(symbol, since, limit, params);
+        return this.filterByArray(orders, 'status', 'closed', false);
+    }
+    async fetchOrder(id, symbol = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchOrder
+         * @description fetches information on an order made by the user
+         * @param {string} id the order id
+         * @param {string} symbol unified symbol of the market the order was made in
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} An [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets();
+        const request = {
+            'orderId': id,
+        };
+        const orders = await this.fetchOrders(symbol, undefined, undefined, this.extend(request, params));
+        const numOrders = orders.length;
+        if (numOrders === 0) {
+            throw new OrderNotFound(this.id + ' order ' + id + ' not found');
+        }
+        return this.safeValue(orders, 0);
+    }
+    async fetchDeposits(code = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchDeposits
+         * @description fetch all deposits made to an account
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/get_deposits
+         * @param {string} code unified currency code
+         * @param {int} [since] the earliest time in ms to fetch deposits for
+         * @param {int} [limit] the maximum number of deposits structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [transaction structures]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        await this.loadMarkets();
+        const request = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency(code);
+            request['symbol'] = currency['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetCapitalDeposits(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "id": "dep123",
+        //             "toAddress": "0x1234...",
+        //             "fromAddress": "0x5678...",
+        //             "confirmations": 12,
+        //             "requiredConfirmations": 10,
+        //             "symbol": "USDC",
+        //             "amount": "100",
+        //             "fee": "0",
+        //             "status": "Confirmed",
+        //             "transactionHash": "0xabc...",
+        //             "blockchainId": "Ethereum",
+        //             "createdAt": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTransactions(response, currency, since, limit, { 'type': 'deposit' });
+    }
+    async fetchWithdrawals(code = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchWithdrawals
+         * @description fetch all withdrawals made from an account
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/get_withdrawals
+         * @param {string} code unified currency code
+         * @param {int} [since] the earliest time in ms to fetch withdrawals for
+         * @param {int} [limit] the maximum number of withdrawals structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [transaction structures]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        await this.loadMarkets();
+        const request = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency(code);
+            request['symbol'] = currency['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.privateGetCapitalWithdrawals(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "id": "wit123",
+        //             "toAddress": "0x1234...",
+        //             "symbol": "USDC",
+        //             "amount": "50",
+        //             "fee": "1",
+        //             "status": "Confirmed",
+        //             "transactionHash": "0xdef...",
+        //             "blockchainId": "Ethereum",
+        //             "createdAt": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseTransactions(response, currency, since, limit, { 'type': 'withdrawal' });
+    }
+    parseTransaction(transaction, currency = undefined) {
+        //
+        // deposit
+        //     {
+        //         "id": "dep123",
+        //         "toAddress": "0x1234...",
+        //         "fromAddress": "0x5678...",
+        //         "confirmations": 12,
+        //         "requiredConfirmations": 10,
+        //         "symbol": "USDC",
+        //         "amount": "100",
+        //         "fee": "0",
+        //         "status": "Confirmed",
+        //         "transactionHash": "0xabc...",
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000000000
+        //     }
+        //
+        // withdrawal
+        //     {
+        //         "id": "wit123",
+        //         "toAddress": "0x1234...",
+        //         "symbol": "USDC",
+        //         "amount": "50",
+        //         "fee": "1",
+        //         "status": "Confirmed",
+        //         "transactionHash": "0xdef...",
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000000000
+        //     }
+        //
+        const id = this.safeString(transaction, 'id');
+        const txid = this.safeString(transaction, 'transactionHash');
+        const timestamp = this.safeInteger(transaction, 'createdAt');
+        const currencyId = this.safeString(transaction, 'symbol');
+        const code = this.safeCurrencyCode(currencyId, currency);
+        const status = this.parseTransactionStatus(this.safeString(transaction, 'status'));
+        const amount = this.safeNumber(transaction, 'amount');
+        const toAddress = this.safeString(transaction, 'toAddress');
+        const fromAddress = this.safeString(transaction, 'fromAddress');
+        const fee = {
+            'currency': code,
+            'cost': this.safeNumber(transaction, 'fee'),
+        };
+        const networkId = this.safeString(transaction, 'blockchainId');
+        const network = this.networkIdToCode(networkId);
+        return {
+            'id': id,
+            'txid': txid,
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'network': network,
+            'address': toAddress,
+            'addressTo': toAddress,
+            'addressFrom': fromAddress,
+            'tag': undefined,
+            'tagTo': undefined,
+            'tagFrom': undefined,
+            'type': undefined,
+            'amount': amount,
+            'currency': code,
+            'status': status,
+            'updated': undefined,
+            'internal': false,
+            'comment': undefined,
+            'fee': fee,
+            'info': transaction,
+        };
+    }
+    parseTransactionStatus(status) {
+        const statuses = {
+            'Pending': 'pending',
+            'Confirmed': 'ok',
+            'Completed': 'ok',
+            'Failed': 'failed',
+            'Cancelled': 'canceled',
+            'Rejected': 'rejected',
+        };
+        return this.safeString(statuses, status, status);
+    }
+    async withdraw(code, amount, address, tag = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#withdraw
+         * @description make a withdrawal
+         * @see https://docs.backpack.exchange/#tag/Capital/operation/request_withdrawal
+         * @param {string} code unified currency code
+         * @param {float} amount the amount to withdraw
+         * @param {string} address the address to withdraw to
+         * @param {string} tag
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [transaction structure]{@link https://docs.ccxt.com/#/?id=transaction-structure}
+         */
+        [tag, params] = this.handleWithdrawTagAndParams(tag, params);
+        await this.loadMarkets();
+        const currency = this.currency(code);
+        const request = {
+            'address': address,
+            'symbol': currency['id'],
+            'quantity': this.currencyToPrecision(code, amount),
+        };
+        const networks = this.safeDict(currency, 'networks');
+        const network = this.safeString(params, 'network');
+        params = this.omit(params, 'network');
+        let networkId = undefined;
+        if (network !== undefined) {
+            const networkItem = this.safeDict(networks, network, {});
+            networkId = this.safeString(networkItem, 'id');
+        }
+        else if (networks !== undefined) {
+            const networkKeys = Object.keys(networks);
+            const numNetworks = networkKeys.length;
+            if (numNetworks === 1) {
+                const networkItem = this.safeDict(networks, networkKeys[0], {});
+                networkId = this.safeString(networkItem, 'id');
+            }
+        }
+        if (networkId !== undefined) {
+            request['blockchain'] = networkId;
+        }
+        if (tag !== undefined) {
+            request['memo'] = tag;
+        }
+        const response = await this.privatePostCapitalWithdraw(this.extend(request, params));
+        //
+        //     {
+        //         "id": "wit456",
+        //         "toAddress": "0x1234...",
+        //         "symbol": "USDC",
+        //         "amount": "50",
+        //         "fee": "1",
+        //         "status": "Pending",
+        //         "transactionHash": null,
+        //         "blockchainId": "Ethereum",
+        //         "createdAt": 1700000010000
+        //     }
+        //
+        return this.parseTransaction(response, currency);
     }
 }
