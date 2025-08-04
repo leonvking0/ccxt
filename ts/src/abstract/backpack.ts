@@ -27,19 +27,20 @@ interface Exchange {
     privateGetCapitalCollateral (params?: {}): Promise<implicitReturnType>;
     privateGetDepositAddress (params?: {}): Promise<implicitReturnType>;
     privateGetOrders (params?: {}): Promise<implicitReturnType>;
-    privateGetOrdersHistory (params?: {}): Promise<implicitReturnType>;
     privateGetOrder (params?: {}): Promise<implicitReturnType>;
     privateGetFills (params?: {}): Promise<implicitReturnType>;
     privateGetPositions (params?: {}): Promise<implicitReturnType>;
-    privateGetCapitalDeposits (params?: {}): Promise<implicitReturnType>;
-    privateGetCapitalWithdrawals (params?: {}): Promise<implicitReturnType>;
     privateGetCapitalDepositAddress (params?: {}): Promise<implicitReturnType>;
     privatePostOrders (params?: {}): Promise<implicitReturnType>;
-    privatePostCapitalWithdraw (params?: {}): Promise<implicitReturnType>;
     privatePostCapitalDustConvert (params?: {}): Promise<implicitReturnType>;
     privatePutAccount (params?: {}): Promise<implicitReturnType>;
     privatePutOrdersOrderId (params?: {}): Promise<implicitReturnType>;
+    privateDeleteOrder (params?: {}): Promise<implicitReturnType>;
     privateDeleteOrders (params?: {}): Promise<implicitReturnType>;
+    wapiGetHistoryOrders (params?: {}): Promise<implicitReturnType>;
+    wapiGetCapitalDeposits (params?: {}): Promise<implicitReturnType>;
+    wapiGetCapitalWithdrawals (params?: {}): Promise<implicitReturnType>;
+    wapiPostCapitalWithdraw (params?: {}): Promise<implicitReturnType>;
 }
 abstract class Exchange extends _Exchange {}
 

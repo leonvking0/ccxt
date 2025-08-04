@@ -75,6 +75,7 @@ export default class backpack extends Exchange {
                 'api': {
                     'public': 'https://api.backpack.exchange/api/v1',
                     'private': 'https://api.backpack.exchange/api/v1',
+                    'wapi': 'https://api.backpack.exchange/wapi/v1',
                 },
                 'www': 'https://backpack.exchange',
                 'doc': 'https://docs.backpack.exchange',
@@ -105,17 +106,13 @@ export default class backpack extends Exchange {
                         'capital/collateral': 1, // margin/collateral endpoint
                         'depositAddress': 1,
                         'orders': 1,
-                        'orders/history': 1,
                         'order': 1,
                         'fills': 1,
                         'positions': 1,
-                        'capital/deposits': 1,
-                        'capital/withdrawals': 1,
                         'capital/deposit-address': 1,
                     },
                     'post': {
                         'orders': 1,  // single and batch orders
-                        'capital/withdraw': 1,
                         'capital/dust/convert': 1,
                     },
                     'put': {
@@ -125,6 +122,16 @@ export default class backpack extends Exchange {
                     'delete': {
                         'order': 1,   // cancel single order
                         'orders': 1,  // cancel all orders
+                    },
+                },
+                'wapi': {
+                    'get': {
+                        'history/orders': 1,
+                        'capital/deposits': 1,
+                        'capital/withdrawals': 1,
+                    },
+                    'post': {
+                        'capital/withdraw': 1,
                     },
                 },
             },
@@ -170,7 +177,7 @@ export default class backpack extends Exchange {
                     'GET:capital': 'balanceQuery',
                     'GET:capital/collateral': 'collateralQuery',
                     'GET:orders': 'orderQueryAll',
-                    'GET:orders/history': 'orderHistoryQueryAll',
+                    'GET:history/orders': 'orderHistoryQueryAll',
                     'GET:order': 'orderQuery',
                     'GET:fills': 'fillHistoryQueryAll',
                     'GET:positions': 'positionQuery',
@@ -1352,7 +1359,7 @@ export default class backpack extends Exchange {
         if (limit !== undefined) {
             request['limit'] = limit;
         }
-        const response = await this.privateGetOrdersHistory (this.extend (request, params));
+        const response = await this.wapiGetHistoryOrders (this.extend (request, params));
         //
         //     [
         //         {
@@ -1437,7 +1444,7 @@ export default class backpack extends Exchange {
         if (limit !== undefined) {
             request['limit'] = limit;
         }
-        const response = await this.privateGetCapitalDeposits (this.extend (request, params));
+        const response = await this.wapiGetCapitalDeposits (this.extend (request, params));
         //
         //     [
         //         {
@@ -1484,7 +1491,7 @@ export default class backpack extends Exchange {
         if (limit !== undefined) {
             request['limit'] = limit;
         }
-        const response = await this.privateGetCapitalWithdrawals (this.extend (request, params));
+        const response = await this.wapiGetCapitalWithdrawals (this.extend (request, params));
         //
         //     [
         //         {
@@ -1627,7 +1634,7 @@ export default class backpack extends Exchange {
         if (tag !== undefined) {
             request['memo'] = tag;
         }
-        const response = await this.privatePostCapitalWithdraw (this.extend (request, params));
+        const response = await this.wapiPostCapitalWithdraw (this.extend (request, params));
         //
         //     {
         //         "id": "wit456",
