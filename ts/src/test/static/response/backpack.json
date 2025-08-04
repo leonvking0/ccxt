@@ -1,0 +1,272 @@
+{
+    "fetchMarkets": [
+        {
+            "symbol": "SOL_USDC",
+            "baseSymbol": "SOL",
+            "quoteSymbol": "USDC",
+            "marketType": "Spot",
+            "baseDecimals": 9,
+            "quoteDecimals": 6,
+            "minOrderSize": "0.01",
+            "maxOrderSize": "100000",
+            "minNotional": "1",
+            "makerFee": "0.0002",
+            "takerFee": "0.0005",
+            "tickSize": "0.01",
+            "stepSize": "0.01"
+        },
+        {
+            "symbol": "BTC_USDC",
+            "baseSymbol": "BTC",
+            "quoteSymbol": "USDC",
+            "marketType": "Spot",
+            "baseDecimals": 8,
+            "quoteDecimals": 6,
+            "minOrderSize": "0.00001",
+            "maxOrderSize": "1000",
+            "minNotional": "1",
+            "makerFee": "0.0002",
+            "takerFee": "0.0005",
+            "tickSize": "0.1",
+            "stepSize": "0.00001"
+        },
+        {
+            "symbol": "SOL_USDC_PERP",
+            "baseSymbol": "SOL",
+            "quoteSymbol": "USDC",
+            "marketType": "Futures",
+            "baseDecimals": 9,
+            "quoteDecimals": 6,
+            "minOrderSize": "0.01",
+            "maxOrderSize": "10000",
+            "minNotional": "1",
+            "makerFee": "0.0002",
+            "takerFee": "0.0005",
+            "tickSize": "0.01",
+            "stepSize": "0.01",
+            "contractSize": "1",
+            "openInterestLimit": "1000000"
+        }
+    ],
+    "fetchTicker": {
+        "symbol": "SOL_USDC",
+        "lastPrice": "100.50",
+        "bidPrice": "100.45",
+        "bidSize": "50.5",
+        "askPrice": "100.55",
+        "askSize": "45.2",
+        "volume": "50000",
+        "quoteVolume": "5025000",
+        "high": "105.00",
+        "low": "98.00",
+        "firstPrice": "99.00",
+        "priceChange": "1.50",
+        "priceChangePercent": "1.515",
+        "trades": "12543",
+        "timestamp": 1700000000000
+    },
+    "fetchOrderBook": {
+        "symbol": "SOL_USDC",
+        "bids": [
+            ["100.45", "50.5"],
+            ["100.44", "100.2"],
+            ["100.43", "150.8"],
+            ["100.42", "200.1"],
+            ["100.41", "75.5"]
+        ],
+        "asks": [
+            ["100.55", "45.2"],
+            ["100.56", "90.5"],
+            ["100.57", "120.3"],
+            ["100.58", "180.7"],
+            ["100.59", "60.9"]
+        ],
+        "lastUpdateId": "111063070525358080",
+        "timestamp": 1700000000000
+    },
+    "fetchTrades": [
+        {
+            "id": "12345",
+            "price": "100.50",
+            "quantity": "1.5",
+            "quoteQuantity": "150.75",
+            "timestamp": 1700000000000,
+            "side": "Buy",
+            "isBuyerMaker": false
+        },
+        {
+            "id": "12346",
+            "price": "100.48",
+            "quantity": "2.0",
+            "quoteQuantity": "200.96",
+            "timestamp": 1700000001000,
+            "side": "Sell",
+            "isBuyerMaker": true
+        },
+        {
+            "id": "12347",
+            "price": "100.52",
+            "quantity": "0.5",
+            "quoteQuantity": "50.26",
+            "timestamp": 1700000002000,
+            "side": "Buy",
+            "isBuyerMaker": false
+        }
+    ],
+    "fetchBalance": [
+        {
+            "symbol": "SOL",
+            "total": "100.5",
+            "available": "90.5",
+            "locked": "10.0",
+            "staked": "0"
+        },
+        {
+            "symbol": "USDC",
+            "total": "5000.0",
+            "available": "4500.0",
+            "locked": "500.0",
+            "staked": "0"
+        },
+        {
+            "symbol": "BTC",
+            "total": "0.5",
+            "available": "0.5",
+            "locked": "0",
+            "staked": "0"
+        }
+    ],
+    "createOrder": {
+        "id": "111063070525358080",
+        "clientId": "client123",
+        "symbol": "SOL_USDC",
+        "side": "Bid",
+        "orderType": "Limit",
+        "timeInForce": "GTC",
+        "price": "100",
+        "quantity": "1",
+        "executedQuantity": "0",
+        "executedQuoteQuantity": "0",
+        "status": "New",
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000000000,
+        "selfTradePrevention": "RejectTaker",
+        "postOnly": false
+    },
+    "cancelOrder": {
+        "id": "111063070525358080",
+        "clientId": "client123",
+        "symbol": "SOL_USDC",
+        "side": "Bid",
+        "orderType": "Limit",
+        "timeInForce": "GTC",
+        "price": "100",
+        "quantity": "1",
+        "executedQuantity": "0",
+        "executedQuoteQuantity": "0",
+        "status": "Cancelled",
+        "createdAt": 1700000000000,
+        "updatedAt": 1700000001000,
+        "selfTradePrevention": "RejectTaker",
+        "postOnly": false
+    },
+    "fetchOpenOrders": [
+        {
+            "id": "111063070525358080",
+            "clientId": "client123",
+            "symbol": "SOL_USDC",
+            "side": "Bid",
+            "orderType": "Limit",
+            "timeInForce": "GTC",
+            "price": "100",
+            "quantity": "1",
+            "executedQuantity": "0",
+            "executedQuoteQuantity": "0",
+            "status": "New",
+            "createdAt": 1700000000000,
+            "updatedAt": 1700000000000,
+            "selfTradePrevention": "RejectTaker",
+            "postOnly": false
+        },
+        {
+            "id": "111063070525358081",
+            "clientId": "client124",
+            "symbol": "SOL_USDC",
+            "side": "Ask",
+            "orderType": "Limit",
+            "timeInForce": "GTC",
+            "price": "110",
+            "quantity": "0.5",
+            "executedQuantity": "0",
+            "executedQuoteQuantity": "0",
+            "status": "New",
+            "createdAt": 1700000002000,
+            "updatedAt": 1700000002000,
+            "selfTradePrevention": "RejectTaker",
+            "postOnly": false
+        }
+    ],
+    "fetchMyTrades": [
+        {
+            "id": "567",
+            "orderId": "111063070525358080",
+            "symbol": "SOL_USDC",
+            "side": "Bid",
+            "price": "100.45",
+            "quantity": "0.5",
+            "quoteQuantity": "50.225",
+            "fee": "0.025",
+            "feeSymbol": "USDC",
+            "liquidity": "TAKER",
+            "timestamp": 1700000005000
+        },
+        {
+            "id": "568",
+            "orderId": "111063070525358081",
+            "symbol": "SOL_USDC",
+            "side": "Ask",
+            "price": "100.55",
+            "quantity": "1.0",
+            "quoteQuantity": "100.55",
+            "fee": "0.02",
+            "feeSymbol": "USDC",
+            "liquidity": "MAKER",
+            "timestamp": 1700000010000
+        }
+    ],
+    "fetchTime": {
+        "serverTime": 1700000000000
+    },
+    "fetchStatus": {
+        "status": "ok",
+        "message": "System operational"
+    },
+    "fetchDeposits": [
+        {
+            "id": "deposit123",
+            "transactionHash": "0xabc123...",
+            "providerId": "solana",
+            "symbol": "SOL",
+            "amount": "10.0",
+            "fee": "0",
+            "status": "Confirmed",
+            "address": "7VJsBtJzgTftYzEeooSDYyjKXvYRWJHdwvbwfBvTg9K",
+            "blockchain": "Solana",
+            "confirmations": 32,
+            "createdAt": 1699900000000
+        }
+    ],
+    "fetchWithdrawals": [
+        {
+            "id": "withdrawal456",
+            "transactionHash": "0xdef456...",
+            "symbol": "USDC",
+            "amount": "100.0",
+            "fee": "1.0",
+            "status": "Completed",
+            "address": "0x1234567890abcdef...",
+            "blockchain": "Ethereum",
+            "createdAt": 1699800000000
+        }
+    ]
+}

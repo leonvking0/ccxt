@@ -1,0 +1,277 @@
+{
+    "SOL": {
+        "symbol": "SOL",
+        "name": "Solana",
+        "decimals": 9,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "0.01",
+        "minWithdrawal": "0.01",
+        "maxWithdrawal": "10000",
+        "withdrawFee": "0.01",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.01",
+                "minWithdrawal": "0.01",
+                "withdrawFee": "0.01",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    },
+    "USDC": {
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "decimals": 6,
+        "blockchain": "Multiple",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "1",
+        "minWithdrawal": "10",
+        "maxWithdrawal": "1000000",
+        "withdrawFee": "1",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "1",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            },
+            {
+                "network": "Ethereum",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "10",
+                "minWithdrawal": "20",
+                "withdrawFee": "5",
+                "addressRegex": "^0x[a-fA-F0-9]{40}$"
+            },
+            {
+                "network": "Polygon",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "0.1",
+                "addressRegex": "^0x[a-fA-F0-9]{40}$"
+            }
+        ]
+    },
+    "BTC": {
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "decimals": 8,
+        "blockchain": "Bitcoin",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "0.0001",
+        "minWithdrawal": "0.001",
+        "maxWithdrawal": "100",
+        "withdrawFee": "0.0002",
+        "networks": [
+            {
+                "network": "Bitcoin",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.0001",
+                "minWithdrawal": "0.001",
+                "withdrawFee": "0.0002",
+                "addressRegex": "^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$"
+            }
+        ]
+    },
+    "ETH": {
+        "symbol": "ETH",
+        "name": "Ethereum",
+        "decimals": 18,
+        "blockchain": "Ethereum",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "0.001",
+        "minWithdrawal": "0.01",
+        "maxWithdrawal": "1000",
+        "withdrawFee": "0.002",
+        "networks": [
+            {
+                "network": "Ethereum",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.001",
+                "minWithdrawal": "0.01",
+                "withdrawFee": "0.002",
+                "addressRegex": "^0x[a-fA-F0-9]{40}$"
+            },
+            {
+                "network": "Arbitrum",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.001",
+                "minWithdrawal": "0.01",
+                "withdrawFee": "0.0001",
+                "addressRegex": "^0x[a-fA-F0-9]{40}$"
+            }
+        ]
+    },
+    "USDT": {
+        "symbol": "USDT",
+        "name": "Tether USD",
+        "decimals": 6,
+        "blockchain": "Multiple",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "1",
+        "minWithdrawal": "10",
+        "maxWithdrawal": "1000000",
+        "withdrawFee": "1",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "1",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            },
+            {
+                "network": "Ethereum",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "10",
+                "minWithdrawal": "20",
+                "withdrawFee": "5",
+                "addressRegex": "^0x[a-fA-F0-9]{40}$"
+            },
+            {
+                "network": "Tron",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "1",
+                "addressRegex": "^T[a-zA-Z0-9]{33}$"
+            }
+        ]
+    },
+    "PYTH": {
+        "symbol": "PYTH",
+        "name": "Pyth Network",
+        "decimals": 6,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "1",
+        "minWithdrawal": "10",
+        "maxWithdrawal": "1000000",
+        "withdrawFee": "0.1",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "0.1",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    },
+    "JTO": {
+        "symbol": "JTO",
+        "name": "Jito",
+        "decimals": 9,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "0.1",
+        "minWithdrawal": "1",
+        "maxWithdrawal": "100000",
+        "withdrawFee": "0.01",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.1",
+                "minWithdrawal": "1",
+                "withdrawFee": "0.01",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    },
+    "BONK": {
+        "symbol": "BONK",
+        "name": "Bonk",
+        "decimals": 5,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "10000",
+        "minWithdrawal": "100000",
+        "maxWithdrawal": "100000000000",
+        "withdrawFee": "10000",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "10000",
+                "minWithdrawal": "100000",
+                "withdrawFee": "10000",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    },
+    "WIF": {
+        "symbol": "WIF",
+        "name": "dogwifhat",
+        "decimals": 6,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "0.1",
+        "minWithdrawal": "1",
+        "maxWithdrawal": "100000",
+        "withdrawFee": "0.1",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "0.1",
+                "minWithdrawal": "1",
+                "withdrawFee": "0.1",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    },
+    "JUP": {
+        "symbol": "JUP",
+        "name": "Jupiter",
+        "decimals": 6,
+        "blockchain": "Solana",
+        "depositEnabled": true,
+        "withdrawEnabled": true,
+        "minDeposit": "1",
+        "minWithdrawal": "10",
+        "maxWithdrawal": "1000000",
+        "withdrawFee": "0.1",
+        "networks": [
+            {
+                "network": "Solana",
+                "depositEnabled": true,
+                "withdrawEnabled": true,
+                "minDeposit": "1",
+                "minWithdrawal": "10",
+                "withdrawFee": "0.1",
+                "addressRegex": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            }
+        ]
+    }
+}

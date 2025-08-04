@@ -1,0 +1,163 @@
+{
+    "exchange": "backpack",
+    "skipKeys": [
+        "signature",
+        "timestamp",
+        "X-Timestamp",
+        "X-Window",
+        "X-Signature"
+    ],
+    "outputType": "urlencoded",
+    "methods": {
+        "fetchMarkets": [
+            {
+                "description": "Fetch all markets",
+                "method": "fetchMarkets",
+                "url": "https://api.backpack.exchange/api/v1/markets",
+                "input": []
+            }
+        ],
+        "fetchTicker": [
+            {
+                "description": "Fetch ticker for SOL/USDC",
+                "method": "fetchTicker",
+                "url": "https://api.backpack.exchange/api/v1/ticker?symbol=SOL_USDC",
+                "input": ["SOL/USDC"]
+            }
+        ],
+        "fetchOrderBook": [
+            {
+                "description": "Fetch order book for SOL/USDC",
+                "method": "fetchOrderBook",
+                "url": "https://api.backpack.exchange/api/v1/depth?symbol=SOL_USDC",
+                "input": ["SOL/USDC"]
+            },
+            {
+                "description": "Fetch order book with limit",
+                "method": "fetchOrderBook",
+                "url": "https://api.backpack.exchange/api/v1/depth?symbol=SOL_USDC&depth=20",
+                "input": ["SOL/USDC", 20]
+            }
+        ],
+        "fetchTrades": [
+            {
+                "description": "Fetch recent trades for SOL/USDC",
+                "method": "fetchTrades",
+                "url": "https://api.backpack.exchange/api/v1/trades?symbol=SOL_USDC",
+                "input": ["SOL/USDC"]
+            },
+            {
+                "description": "Fetch trades with limit",
+                "method": "fetchTrades",
+                "url": "https://api.backpack.exchange/api/v1/trades?symbol=SOL_USDC&limit=100",
+                "input": ["SOL/USDC", null, 100]
+            }
+        ],
+        "fetchBalance": [
+            {
+                "description": "Fetch account balance",
+                "method": "fetchBalance",
+                "url": "https://api.backpack.exchange/api/v1/balances",
+                "input": [],
+                "output": "instruction=balanceQuery&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "createOrder": [
+            {
+                "description": "Create limit buy order for SOL/USDC",
+                "method": "createOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": [
+                    "SOL/USDC",
+                    "limit",
+                    "buy",
+                    1,
+                    100
+                ],
+                "output": "instruction=orderExecute&orderType=Limit&price=100&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Create limit sell order for SOL/USDC",
+                "method": "createOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": [
+                    "SOL/USDC",
+                    "limit",
+                    "sell",
+                    1,
+                    110
+                ],
+                "output": "instruction=orderExecute&orderType=Limit&price=110&quantity=1&side=Ask&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Create market buy order for SOL/USDC",
+                "method": "createOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": [
+                    "SOL/USDC",
+                    "market",
+                    "buy",
+                    1
+                ],
+                "output": "instruction=orderExecute&orderType=Market&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Create postOnly limit order",
+                "method": "createOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": [
+                    "SOL/USDC",
+                    "limit",
+                    "buy",
+                    1,
+                    100,
+                    {
+                        "postOnly": true
+                    }
+                ],
+                "output": "instruction=orderExecute&orderType=Limit&postOnly=true&price=100&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "cancelOrder": [
+            {
+                "description": "Cancel order by ID",
+                "method": "cancelOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/111063070525358080",
+                "input": ["111063070525358080", "SOL/USDC"],
+                "output": "instruction=orderCancel&orderId=111063070525358080&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchOrders": [
+            {
+                "description": "Fetch open orders",
+                "method": "fetchOpenOrders",
+                "url": "https://api.backpack.exchange/api/v1/orders",
+                "input": [],
+                "output": "instruction=orderQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch open orders for symbol",
+                "method": "fetchOpenOrders",
+                "url": "https://api.backpack.exchange/api/v1/orders?symbol=SOL_USDC",
+                "input": ["SOL/USDC"],
+                "output": "instruction=orderQueryAll&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchMyTrades": [
+            {
+                "description": "Fetch my trades",
+                "method": "fetchMyTrades",
+                "url": "https://api.backpack.exchange/api/v1/fills",
+                "input": [],
+                "output": "instruction=fillHistoryQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch my trades for symbol",
+                "method": "fetchMyTrades",
+                "url": "https://api.backpack.exchange/api/v1/fills?symbol=SOL_USDC",
+                "input": ["SOL/USDC"],
+                "output": "instruction=fillHistoryQueryAll&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ]
+    }
+}
