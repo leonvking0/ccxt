@@ -101,7 +101,8 @@ export default class backpack extends Exchange {
                 'private': {
                     'get': {
                         'account': 1,
-                        'balances': 1,
+                        'capital': 1, // balances endpoint (deprecated)
+                        'capital/collateral': 1, // actual balances endpoint
                         'depositAddress': 1,
                         'orders': 1,
                         'orders/history': 1,
@@ -113,8 +114,7 @@ export default class backpack extends Exchange {
                         'capital/deposit-address': 1,
                     },
                     'post': {
-                        'orders/execute': 1,
-                        'orders': 1,  // batch orders
+                        'orders': 1,  // single and batch orders
                         'capital/withdraw': 1,
                         'capital/dust/convert': 1,
                     },
@@ -123,8 +123,7 @@ export default class backpack extends Exchange {
                         'orders/{orderId}': 1,
                     },
                     'delete': {
-                        'orders/{orderId}': 1,
-                        'orders': 1,
+                        'orders': 1,  // cancel orders
                     },
                 },
             },
@@ -167,7 +166,8 @@ export default class backpack extends Exchange {
                 'instructionTypes': {
                     // Map endpoints to instruction types
                     'GET:account': 'accountQuery',
-                    'GET:balances': 'balanceQuery',
+                    'GET:capital': 'balanceQuery',
+                    'GET:capital/collateral': 'collateralQuery',
                     'GET:orders': 'orderQueryAll',
                     'GET:orders/history': 'orderHistoryQueryAll',
                     'GET:order': 'orderQuery',
@@ -176,10 +176,8 @@ export default class backpack extends Exchange {
                     'GET:capital/deposits': 'depositQueryAll',
                     'GET:capital/withdrawals': 'withdrawalQueryAll',
                     'GET:capital/deposit-address': 'depositAddressQuery',
-                    'POST:orders/execute': 'orderExecute',
-                    'POST:orders': 'orderExecute', // batch
+                    'POST:orders': 'orderExecute',
                     'POST:capital/withdraw': 'withdraw',
-                    'DELETE:orders/{orderId}': 'orderCancel',
                     'DELETE:orders': 'orderCancelAll',
                 },
             },
@@ -287,11 +285,23 @@ export default class backpack extends Exchange {
         const base = this.safeCurrencyCode (baseId);
         const quote = this.safeCurrencyCode (quoteId);
         const marketType = this.safeString (market, 'marketType');
-        const spot = (marketType === 'Spot');
-        const futures = (marketType === 'Futures');
+        const spot = (marketType === 'SPOT');
+        const futures = (marketType === 'FUTURES' || marketType === 'PERP');
         const symbol = base + '/' + quote + (futures ? ':' + quote : '');
         const maker = this.safeNumber (market, 'makerFee');
         const taker = this.safeNumber (market, 'takerFee');
+        
+        // Extract filters for price and quantity
+        const filters = this.safeDict (market, 'filters', {});
+        const priceFilter = this.safeDict (filters, 'price', {});
+        const quantityFilter = this.safeDict (filters, 'quantity', {});
+        
+        const tickSize = this.safeString (priceFilter, 'tickSize');
+        const stepSize = this.safeString (quantityFilter, 'stepSize');
+        const minQuantity = this.safeString (quantityFilter, 'minQuantity');
+        const maxQuantity = this.safeString (quantityFilter, 'maxQuantity');
+        const minPrice = this.safeString (priceFilter, 'minPrice');
+        const maxPrice = this.safeString (priceFilter, 'maxPrice');
         return this.safeMarketStructure ({
             'id': id,
             'symbol': symbol,
@@ -318,17 +328,17 @@ export default class backpack extends Exchange {
             'tierBased': false,
             'feeSide': 'quote',
             'precision': {
-                'amount': this.parseNumber (this.parsePrecision (this.safeString (market, 'stepSize'))),
-                'price': this.parseNumber (this.parsePrecision (this.safeString (market, 'tickSize'))),
+                'amount': stepSize ? this.parseNumber (stepSize) : undefined,
+                'price': tickSize ? this.parseNumber (tickSize) : undefined,
             },
             'limits': {
                 'amount': {
-                    'min': this.safeNumber (market, 'minOrderSize'),
-                    'max': this.safeNumber (market, 'maxOrderSize'),
+                    'min': this.safeNumber2 (market, 'minOrderSize', minQuantity),
+                    'max': this.safeNumber2 (market, 'maxOrderSize', maxQuantity),
                 },
                 'price': {
-                    'min': undefined,
-                    'max': undefined,
+                    'min': this.safeNumber (priceFilter, 'minPrice'),
+                    'max': this.safeNumber (priceFilter, 'maxPrice'),
                 },
                 'cost': {
                     'min': this.safeNumber (market, 'minNotional'),
@@ -553,15 +563,34 @@ export default class backpack extends Exchange {
             // Get instruction type for this endpoint
             const instruction = this.getInstructionType (path, method);
             let queryString = '';
-            if (method === 'GET' || method === 'DELETE') {
+            if (method === 'GET') {
                 if (Object.keys (query).length) {
                     // Sort parameters alphabetically
                     const sortedQuery = this.keysort (query);
                     queryString = this.urlencode (sortedQuery);
                     url += '?' + queryString;
                 }
-            } else {
+            } else if (method === 'DELETE') {
+                // For DELETE, pass parameters in body
                 if (Object.keys (query).length) {
+                    const sortedQuery = this.keysort (query);
+                    queryString = this.urlencode (sortedQuery);
+                    body = this.json (query);
+                }
+            } else {
+                // Handle batch orders (array) differently
+                if (Array.isArray (query)) {
+                    // For batch orders, each order needs its own instruction prefix
+                    const orderStrings = [];
+                    for (let i = 0; i < query.length; i++) {
+                        const order = query[i];
+                        const sortedOrder = this.keysort (order);
+                        const orderQuery = this.urlencode (sortedOrder);
+                        orderStrings.push ('instruction=' + instruction + '&' + orderQuery);
+                    }
+                    queryString = orderStrings.join ('&');
+                    body = this.json (query);
+                } else if (Object.keys (query).length) {
                     // Sort parameters alphabetically
                     const sortedQuery = this.keysort (query);
                     queryString = this.urlencode (sortedQuery);
@@ -569,9 +598,15 @@ export default class backpack extends Exchange {
                 }
             }
             // Build signature payload
-            let signaturePayload = 'instruction=' + instruction;
-            if (queryString) {
-                signaturePayload += '&' + queryString;
+            let signaturePayload = '';
+            if (Array.isArray (query)) {
+                // For batch orders, queryString already contains the instruction prefixes
+                signaturePayload = queryString;
+            } else {
+                signaturePayload = 'instruction=' + instruction;
+                if (queryString) {
+                    signaturePayload += '&' + queryString;
+                }
             }
             signaturePayload += '&timestamp=' + timestamp.toString ();
             signaturePayload += '&window=' + window.toString ();
@@ -641,7 +676,7 @@ export default class backpack extends Exchange {
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets ();
-        const response = await this.privateGetBalances (params);
+        const response = await this.privateGetCapitalCollateral (params);
         //
         //     [
         //         {
@@ -660,15 +695,40 @@ export default class backpack extends Exchange {
         const result: Dict = {
             'info': response,
         };
-        for (let i = 0; i < response.length; i++) {
-            const balance = response[i];
-            const currencyId = this.safeString (balance, 'symbol');
-            const code = this.safeCurrencyCode (currencyId);
-            const account = this.account ();
-            account['free'] = this.safeString (balance, 'available');
-            account['used'] = this.safeString (balance, 'locked');
-            account['total'] = this.safeString (balance, 'total');
-            result[code] = account;
+        // Check if response has 'collateral' array (new format)
+        const collateralArray = this.safeList (response, 'collateral');
+        const balances = collateralArray !== undefined ? collateralArray : response;
+        
+        // Handle array of balances
+        if (Array.isArray (balances)) {
+            for (let i = 0; i < balances.length; i++) {
+                const balance = balances[i];
+                const currencyId = this.safeString (balance, 'symbol');
+                const code = this.safeCurrencyCode (currencyId);
+                const account = this.account ();
+                // For collateral endpoint
+                if (collateralArray !== undefined) {
+                    const available = this.safeString (balance, 'availableQuantity');
+                    const lend = this.safeString (balance, 'lendQuantity', '0');
+                    const openOrders = this.safeString (balance, 'openOrderQuantity', '0');
+                    const total = this.safeString (balance, 'totalQuantity');
+                    
+                    // availableQuantity + lendQuantity = free balance (not locked in orders)
+                    const availableNum = this.parseNumber (available);
+                    const lendNum = this.parseNumber (lend);
+                    const freeAmount = this.sum (availableNum, lendNum);
+                    
+                    account['free'] = freeAmount;
+                    account['used'] = openOrders;
+                    account['total'] = total;
+                } else {
+                    // For old balance format
+                    account['free'] = this.safeString (balance, 'available');
+                    account['used'] = this.safeString (balance, 'locked');
+                    account['total'] = this.safeString (balance, 'total');
+                }
+                result[code] = account;
+            }
         }
         return this.safeBalance (result);
     }
@@ -706,9 +766,13 @@ export default class backpack extends Exchange {
         }
         const timeInForce = this.safeString (params, 'timeInForce', 'GTC');
         request['timeInForce'] = timeInForce;
-        const response = await this.privatePostOrdersExecute (this.extend (request, params));
+        // The API expects an array for the batch endpoint
+        const requestArray = [ this.extend (request, params) ];
+        const responseArray = await this.privatePostOrders (requestArray);
+        // Response is an array since we sent a batch
+        const response = this.safeDict (responseArray, 0);
         //
-        //     {
+        //     [{
         //         "id": "111063070525358080",
         //         "clientId": "client123",
         //         "symbol": "SOL_USDC",
@@ -724,7 +788,7 @@ export default class backpack extends Exchange {
         //         "updatedAt": 1700000000000,
         //         "selfTradePrevention": "RejectTaker",
         //         "postOnly": false
-        //     }
+        //     }]
         //
         return this.parseOrder (response, market);
     }
@@ -748,8 +812,27 @@ export default class backpack extends Exchange {
             'orderId': id,
             'symbol': market['id'],
         };
-        const response = await this.privateDeleteOrdersOrderId (this.extend (request, params));
+        const response = await this.privateDeleteOrders (this.extend (request, params));
         return this.parseOrder (response, market);
+    }
+    
+    async cancelAllOrders (symbol: Str = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#cancelAllOrders
+         * @description cancel all open orders in a market
+         * @param {string} symbol unified symbol of the market to cancel orders in
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {};
+        if (symbol !== undefined) {
+            const market = this.market (symbol);
+            request['symbol'] = market['id'];
+        }
+        const response = await this.privateDeleteOrders (this.extend (request, params));
+        return response;
     }
 
     async fetchOpenOrders (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<Order[]> {
