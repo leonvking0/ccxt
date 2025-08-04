@@ -123,7 +123,8 @@ export default class backpack extends Exchange {
                         'orders/{orderId}': 1,
                     },
                     'delete': {
-                        'orders': 1,  // cancel orders
+                        'order': 1,   // cancel single order
+                        'orders': 1,  // cancel all orders
                     },
                 },
             },
@@ -178,6 +179,7 @@ export default class backpack extends Exchange {
                     'GET:capital/deposit-address': 'depositAddressQuery',
                     'POST:orders': 'orderExecute',
                     'POST:capital/withdraw': 'withdraw',
+                    'DELETE:order': 'orderCancel',
                     'DELETE:orders': 'orderCancelAll',
                 },
             },
@@ -842,7 +844,7 @@ export default class backpack extends Exchange {
             'orderId': id,
             'symbol': market['id'],
         };
-        const response = await this.privateDeleteOrders (this.extend (request, params));
+        const response = await (this as any).privateDeleteOrder (this.extend (request, params));
         return this.parseOrder (response, market);
     }
 
