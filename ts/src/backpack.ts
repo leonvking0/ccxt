@@ -573,14 +573,12 @@ export default class backpack extends Exchange {
         }
         // Convert milliseconds to seconds for the API
         request['startTime'] = Math.floor (startTime / 1000);
-        
         // If limit is specified, calculate endTime based on timeframe
         if (limit !== undefined) {
             const duration = this.parseTimeframe (timeframe) * 1000; // Convert to milliseconds
             const endTime = startTime + (limit * duration);
             request['endTime'] = Math.floor (Math.min (endTime, now) / 1000);
         }
-        
         const response = await this.publicGetKlines (this.extend (request, params));
         //
         //     [

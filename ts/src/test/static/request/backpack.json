@@ -158,6 +158,171 @@
                 "input": ["SOL/USDC"],
                 "output": "instruction=fillHistoryQueryAll&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
             }
+        ],
+        "fetchOHLCV": [
+            {
+                "description": "Fetch OHLCV data for SOL/USDC 1h",
+                "method": "fetchOHLCV",
+                "url": "https://api.backpack.exchange/api/v1/klines?symbol=SOL_USDC&interval=1h&startTime=1700000000000",
+                "input": ["SOL/USDC", "1h", 1700000000000]
+            },
+            {
+                "description": "Fetch OHLCV data with limit",
+                "method": "fetchOHLCV",
+                "url": "https://api.backpack.exchange/api/v1/klines?symbol=SOL_USDC&interval=1d&startTime=1700000000000&endTime=1700086400000",
+                "input": ["SOL/USDC", "1d", 1700000000000, 100]
+            }
+        ],
+        "fetchTickers": [
+            {
+                "description": "Fetch all tickers",
+                "method": "fetchTickers",
+                "url": "https://api.backpack.exchange/api/v1/tickers",
+                "input": []
+            },
+            {
+                "description": "Fetch specific tickers",
+                "method": "fetchTickers",
+                "url": "https://api.backpack.exchange/api/v1/tickers",
+                "input": [["SOL/USDC", "BTC/USDC"]]
+            }
+        ],
+        "fetchCurrencies": [
+            {
+                "description": "Fetch all currencies",
+                "method": "fetchCurrencies",
+                "url": "https://api.backpack.exchange/api/v1/assets",
+                "input": []
+            }
+        ],
+        "fetchOrders": [
+            {
+                "description": "Fetch all orders history",
+                "method": "fetchOrders",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders",
+                "input": [],
+                "output": "instruction=orderHistoryQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch orders for symbol",
+                "method": "fetchOrders",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders?symbol=SOL_USDC",
+                "input": ["SOL/USDC"],
+                "output": "instruction=orderHistoryQueryAll&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch orders with limit",
+                "method": "fetchOrders",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders?limit=50&offset=0",
+                "input": [null, null, 50],
+                "output": "instruction=orderHistoryQueryAll&limit=50&offset=0&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchClosedOrders": [
+            {
+                "description": "Fetch closed orders",
+                "method": "fetchClosedOrders",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders",
+                "input": [],
+                "output": "instruction=orderHistoryQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch closed orders for symbol",
+                "method": "fetchClosedOrders",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders?symbol=SOL_USDC",
+                "input": ["SOL/USDC"],
+                "output": "instruction=orderHistoryQueryAll&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchOrder": [
+            {
+                "description": "Fetch single order by ID",
+                "method": "fetchOrder",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders?orderId=111063070525358080",
+                "input": ["111063070525358080"],
+                "output": "instruction=orderHistoryQueryAll&orderId=111063070525358080&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch single order with symbol",
+                "method": "fetchOrder",
+                "url": "https://api.backpack.exchange/wapi/v1/history/orders?orderId=111063070525358080&symbol=SOL_USDC",
+                "input": ["111063070525358080", "SOL/USDC"],
+                "output": "instruction=orderHistoryQueryAll&orderId=111063070525358080&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchDeposits": [
+            {
+                "description": "Fetch all deposits",
+                "method": "fetchDeposits",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/deposits",
+                "input": [],
+                "output": "instruction=depositQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch deposits for currency",
+                "method": "fetchDeposits",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/deposits?address=0x123",
+                "input": ["USDC"],
+                "output": "instruction=depositQueryAll&address=0x123&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch deposits with limit",
+                "method": "fetchDeposits",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/deposits?limit=10&offset=0",
+                "input": [null, null, 10],
+                "output": "instruction=depositQueryAll&limit=10&offset=0&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchWithdrawals": [
+            {
+                "description": "Fetch all withdrawals",
+                "method": "fetchWithdrawals",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/withdrawals",
+                "input": [],
+                "output": "instruction=withdrawalQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch withdrawals for currency",
+                "method": "fetchWithdrawals",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/withdrawals?address=0x456",
+                "input": ["SOL"],
+                "output": "instruction=withdrawalQueryAll&address=0x456&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch withdrawals with limit",
+                "method": "fetchWithdrawals",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/withdrawals?limit=20&offset=0",
+                "input": [null, null, 20],
+                "output": "instruction=withdrawalQueryAll&limit=20&offset=0&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "withdraw": [
+            {
+                "description": "Withdraw USDC to address",
+                "method": "withdraw",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/withdraw",
+                "input": [
+                    "USDC",
+                    100,
+                    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb7"
+                ],
+                "output": "address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb7&blockchain=Ethereum&clientId=withdraw_1700000000000&instruction=withdraw&quantity=100&symbol=USDC&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Withdraw SOL with memo",
+                "method": "withdraw",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/withdraw",
+                "input": [
+                    "SOL",
+                    10,
+                    "11111111111111111111111111111111",
+                    "test-memo",
+                    {
+                        "blockchain": "Solana"
+                    }
+                ],
+                "output": "address=11111111111111111111111111111111&blockchain=Solana&clientId=withdraw_1700000000000&instruction=withdraw&memo=test-memo&quantity=10&symbol=SOL&timestamp=1700000000000&window=5000"
+            }
         ]
     }
 }
