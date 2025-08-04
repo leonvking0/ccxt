@@ -42,7 +42,6 @@ interface Exchange {
     privateDeleteOrdersOrderId (params?: {}): Promise<implicitReturnType>;
     privateDeleteOrders (params?: {}): Promise<implicitReturnType>;
 }
-
 abstract class Exchange extends _Exchange {}
 
-export default Exchange;
+export default Exchange

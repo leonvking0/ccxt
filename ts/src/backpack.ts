@@ -2,11 +2,8 @@
 
 import Exchange from './abstract/backpack.js';
 import { ExchangeError, ArgumentsRequired, InvalidOrder, OrderNotFound, InsufficientFunds, AuthenticationError, RateLimitExceeded, PermissionDenied, BadRequest, BadSymbol, AccountSuspended, InvalidNonce, NotSupported, OnMaintenance } from './base/errors.js';
-import { Precise } from './base/Precise.js';
 import { ed25519 } from './static_dependencies/noble-curves/ed25519.js';
-import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import type { TransferEntry, Int, OrderSide, Balances, OrderType, Trade, OHLCV, Order, FundingRateHistory, OpenInterest, Liquidation, OrderRequest, Str, Transaction, Ticker, OrderBook, Tickers, Market, Greeks, Strings, Currency, MarketInterface, Leverage, Leverages, Num, Option, MarginModification, TradingFeeInterface, Currencies, TradingFees, Dict, LeverageTier, LeverageTiers, int, LedgerEntry, FundingRate, FundingRates, DepositAddress, BorrowInterest, Position } from './base/types.js';
-import { TICK_SIZE } from './base/functions/number.js';
+import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -199,10 +196,12 @@ export default class backpack extends Exchange {
          */
         const response = await this.publicGetTime (params);
         //
-        //     {
-        //         "serverTime": 1700000000000
-        //     }
+        //     1700000000000
         //
+        // The API returns a plain timestamp string/number, not an object
+        if (typeof response === 'number' || typeof response === 'string') {
+            return parseInt (response.toString ());
+        }
         return this.safeInteger (response, 'serverTime');
     }
 
