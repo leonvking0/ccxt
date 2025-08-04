@@ -1,5 +1,7 @@
 {
     "exchange": "backpack",
+    "apiKey": "test_backpack_public_key",
+    "secret": "8Mw0QLMkar0QcJTDZdx0kktJEj4gUU9G0724COtaISw=",
     "skipKeys": [
         "signature",
         "timestamp",
