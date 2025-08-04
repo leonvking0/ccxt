@@ -101,8 +101,8 @@ export default class backpack extends Exchange {
                 'private': {
                     'get': {
                         'account': 1,
-                        'capital': 1, // balances endpoint (deprecated)
-                        'capital/collateral': 1, // actual balances endpoint
+                        'capital': 1, // spot balance endpoint
+                        'capital/collateral': 1, // margin/collateral endpoint
                         'depositAddress': 1,
                         'orders': 1,
                         'orders/history': 1,
@@ -290,18 +290,14 @@ export default class backpack extends Exchange {
         const symbol = base + '/' + quote + (futures ? ':' + quote : '');
         const maker = this.safeNumber (market, 'makerFee');
         const taker = this.safeNumber (market, 'takerFee');
-        
         // Extract filters for price and quantity
         const filters = this.safeDict (market, 'filters', {});
         const priceFilter = this.safeDict (filters, 'price', {});
         const quantityFilter = this.safeDict (filters, 'quantity', {});
-        
         const tickSize = this.safeString (priceFilter, 'tickSize');
         const stepSize = this.safeString (quantityFilter, 'stepSize');
         const minQuantity = this.safeString (quantityFilter, 'minQuantity');
         const maxQuantity = this.safeString (quantityFilter, 'maxQuantity');
-        const minPrice = this.safeString (priceFilter, 'minPrice');
-        const maxPrice = this.safeString (priceFilter, 'maxPrice');
         return this.safeMarketStructure ({
             'id': id,
             'symbol': symbol,
@@ -676,7 +672,7 @@ export default class backpack extends Exchange {
          * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
          */
         await this.loadMarkets ();
-        const response = await this.privateGetCapitalCollateral (params);
+        const response = await this.privateGetCapital (params);
         //
         //     [
         //         {
@@ -695,42 +691,76 @@ export default class backpack extends Exchange {
         const result: Dict = {
             'info': response,
         };
-        // Check if response has 'collateral' array (new format)
-        const collateralArray = this.safeList (response, 'collateral');
-        const balances = collateralArray !== undefined ? collateralArray : response;
-        
-        // Handle array of balances
-        if (Array.isArray (balances)) {
-            for (let i = 0; i < balances.length; i++) {
-                const balance = balances[i];
+        // Handle array of balances from /capital/balances endpoint
+        if (Array.isArray (response)) {
+            for (let i = 0; i < response.length; i++) {
+                const balance = response[i];
                 const currencyId = this.safeString (balance, 'symbol');
                 const code = this.safeCurrencyCode (currencyId);
                 const account = this.account ();
-                // For collateral endpoint
-                if (collateralArray !== undefined) {
-                    const available = this.safeString (balance, 'availableQuantity');
-                    const lend = this.safeString (balance, 'lendQuantity', '0');
-                    const openOrders = this.safeString (balance, 'openOrderQuantity', '0');
-                    const total = this.safeString (balance, 'totalQuantity');
-                    
-                    // availableQuantity + lendQuantity = free balance (not locked in orders)
-                    const availableNum = this.parseNumber (available);
-                    const lendNum = this.parseNumber (lend);
-                    const freeAmount = this.sum (availableNum, lendNum);
-                    
-                    account['free'] = freeAmount;
-                    account['used'] = openOrders;
-                    account['total'] = total;
-                } else {
-                    // For old balance format
-                    account['free'] = this.safeString (balance, 'available');
-                    account['used'] = this.safeString (balance, 'locked');
-                    account['total'] = this.safeString (balance, 'total');
-                }
+                account['free'] = this.safeString (balance, 'available');
+                account['used'] = this.safeString (balance, 'locked');
+                account['total'] = this.safeString (balance, 'total');
                 result[code] = account;
             }
         }
         return this.safeBalance (result);
+    }
+
+    async fetchCollateral (params = {}): Promise<Dict> {
+        /**
+         * @method
+         * @name backpack#fetchCollateral
+         * @description fetches the margin/collateral status for cross-margin trading
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a collateral structure with margin and risk information
+         */
+        await this.loadMarkets ();
+        const response = await this.privateGetCapitalCollateral (params);
+        //
+        //     {
+        //         "netEquity": "1000.00",
+        //         "netEquityAvailable": "500.00",
+        //         "collateral": [
+        //             {
+        //                 "symbol": "SOL",
+        //                 "totalQuantity": "10.5",
+        //                 "availableQuantity": "8.0",
+        //                 "collateralWeight": "0.9",
+        //                 "collateralValue": "945.00",
+        //                 "openOrderQuantity": "2.5",
+        //                 "lendQuantity": "0"
+        //             }
+        //         ]
+        //     }
+        //
+        return this.parseCollateral (response);
+    }
+
+    parseCollateral (response): Dict {
+        const netEquity = this.safeString (response, 'netEquity');
+        const netEquityAvailable = this.safeString (response, 'netEquityAvailable');
+        const collateralArray = this.safeList (response, 'collateral', []);
+        const result: Dict = {
+            'info': response,
+            'netEquity': this.parseNumber (netEquity),
+            'netEquityAvailable': this.parseNumber (netEquityAvailable),
+            'collateral': {},
+        };
+        for (let i = 0; i < collateralArray.length; i++) {
+            const item = collateralArray[i];
+            const currencyId = this.safeString (item, 'symbol');
+            const code = this.safeCurrencyCode (currencyId);
+            result['collateral'][code] = {
+                'total': this.safeNumber (item, 'totalQuantity'),
+                'available': this.safeNumber (item, 'availableQuantity'),
+                'collateralWeight': this.safeNumber (item, 'collateralWeight'),
+                'collateralValue': this.safeNumber (item, 'collateralValue'),
+                'openOrders': this.safeNumber (item, 'openOrderQuantity'),
+                'lent': this.safeNumber (item, 'lendQuantity'),
+            };
+        }
+        return result;
     }
 
     async createOrder (symbol: string, type: OrderType, side: OrderSide, amount: number, price: Num = undefined, params = {}): Promise<Order> {
@@ -815,7 +845,7 @@ export default class backpack extends Exchange {
         const response = await this.privateDeleteOrders (this.extend (request, params));
         return this.parseOrder (response, market);
     }
-    
+
     async cancelAllOrders (symbol: Str = undefined, params = {}) {
         /**
          * @method

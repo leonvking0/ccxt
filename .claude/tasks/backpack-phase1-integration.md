@@ -633,3 +633,43 @@ Once Phase 1 is complete and all tests pass:
 1. Test order operations with funded account when available
 2. Monitor for perpetual market availability
 3. Consider adding testnet support for safer order testing
+
+---
+
+## Balance vs Collateral Update (2025-08-04)
+
+### Key Changes Implemented
+1. **Fixed Balance Endpoint**
+   - Changed from `/capital/balances` (404 error) to `/capital` (correct endpoint)
+   - Updated instruction mapping: `'GET:capital': 'balanceQuery'`
+   - Balance now correctly fetches spot wallet balances
+
+2. **Added fetchCollateral Method**
+   - New method for fetching margin/collateral information
+   - Uses `/capital/collateral` endpoint with `collateralQuery` instruction
+   - Returns netEquity, netEquityAvailable, and per-asset collateral details
+
+3. **Balance vs Collateral Distinction**
+   - **Balance (`/capital`)**: Returns spot wallet balances with `available`, `locked`, `total` fields
+   - **Collateral (`/capital/collateral`)**: Returns margin info with `netEquity`, `netEquityAvailable`, collateral weights
+   - For spot trading: Use `balance.available` to check funds
+   - For margin/futures: Use `collateral.netEquityAvailable` to check margin capacity
+
+### Live Testing Results  
+1. **Spot Trading (SOL/USDC)**
+   - ✅ Order placement works correctly
+   - ✅ Balance fetching works with correct endpoint
+   - ⚠️ Order cancellation has signature issues (needs investigation)
+
+2. **Perpetual Trading (SOL/USDC:USDC)**
+   - ✅ 36 perpetual markets available in production
+   - ✅ Order placement works correctly
+   - ✅ Collateral fetching provides margin information
+   - ⚠️ Order cancellation has signature issues (same as spot)
+
+### Known Issues
+1. **Cancel Order Signature**: The `cancelOrder` method has invalid signature errors. The API uses `orderCancelAll` instruction for DELETE `/orders`, but single order cancel might need different implementation approach.
+
+### Test Account Status
+- Balance: 0 USDC, 0 SOL (unfunded)
+- Collateral: ~185k USDC net equity (appears to be paper trading or testnet)
