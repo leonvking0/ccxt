@@ -158,4 +158,31 @@ export default class backpack extends Exchange {
     fetchDepositAddress(code: string, params?: {}): Promise<DepositAddress>;
     parseDepositAddress(depositAddress: Dict, currency?: Currency): DepositAddress;
     fetchTradingFees(params?: {}): Promise<TradingFees>;
+    fetchSettlementHistory(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<any>;
+    parseSettlement(settlement: any, market?: any): {
+        info: any;
+        symbol: string;
+        price: number;
+        timestamp: number;
+        datetime: string;
+        quantity: number;
+        pnl: number;
+        fee: number;
+    };
+    parseSettlements(settlements: any, market?: any, since?: Int, limit?: Int): any;
+    fetchPnlHistory(symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<any>;
+    parsePnl(pnl: any, market?: any): {
+        info: any;
+        symbol: string;
+        pnl: number;
+        timestamp: number;
+        datetime: string;
+        side: string;
+        quantity: number;
+        price: number;
+        fee: number;
+    };
+    parsePnlHistory(pnls: any, market?: any, since?: Int, limit?: Int): any;
+    createStopLossOrder(symbol: string, type: OrderType, side: OrderSide, amount: number, stopPrice: number, price?: Num, params?: {}): Promise<Order>;
+    createTakeProfitOrder(symbol: string, type: OrderType, side: OrderSide, amount: number, takeProfitPrice: number, price?: Num, params?: {}): Promise<Order>;
 }

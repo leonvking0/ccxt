@@ -509,6 +509,188 @@
             "blockchain": "Ethereum",
             "clientId": "withdraw_1700000000000",
             "createdAt": 1700000000000
+        },
+        "fetchPosition": {
+            "symbol": "SOL_USDC_PERP",
+            "size": "10.0",
+            "side": "Long",
+            "entryPrice": "100.50",
+            "markPrice": "102.00",
+            "pnl": "15.00",
+            "pnlPercentage": "1.49",
+            "margin": "100.00",
+            "marginRatio": "0.10",
+            "liquidationPrice": "80.00",
+            "leverage": "10"
+        },
+        "fetchPositions": [
+            {
+                "symbol": "SOL_USDC_PERP",
+                "size": "10.0",
+                "side": "Long",
+                "entryPrice": "100.50",
+                "markPrice": "102.00",
+                "pnl": "15.00",
+                "pnlPercentage": "1.49",
+                "margin": "100.00",
+                "marginRatio": "0.10",
+                "liquidationPrice": "80.00",
+                "leverage": "10"
+            }
+        ],
+        "fetchFundingRate": {
+            "symbol": "SOL_USDC_PERP",
+            "fundingRate": "0.0001",
+            "fundingTime": 1700086400000,
+            "interval": "8h",
+            "markPrice": "102.00"
+        },
+        "fetchFundingRateHistory": [
+            {
+                "symbol": "SOL_USDC_PERP",
+                "fundingRate": "0.0001",
+                "timestamp": 1700000000000,
+                "payment": "0.1"
+            }
+        ],
+        "fetchMarkPrice": {
+            "symbol": "SOL_USDC_PERP",
+            "markPrice": "102.00",
+            "indexPrice": "101.95",
+            "timestamp": 1700000000000
+        },
+        "fetchOpenInterest": {
+            "symbol": "SOL_USDC_PERP",
+            "openInterest": "1000000",
+            "openInterestValue": "102000000",
+            "timestamp": 1700000000000
+        },
+        "fetchBorrowRates": [
+            {
+                "asset": "USDC",
+                "borrowRate": "0.05",
+                "lendRate": "0.03",
+                "utilization": "0.60",
+                "available": "1000000",
+                "borrowed": "1500000"
+            },
+            {
+                "asset": "ETH",
+                "borrowRate": "0.03",
+                "lendRate": "0.02",
+                "utilization": "0.45",
+                "available": "500",
+                "borrowed": "400"
+            }
+        ],
+        "fetchBorrowRateHistory": [
+            {
+                "asset": "USDC",
+                "borrowRate": "0.05",
+                "lendRate": "0.03",
+                "timestamp": 1700000000000
+            }
+        ],
+        "borrowMargin": {
+            "id": "borrow123",
+            "symbol": "USDC",
+            "amount": "1000",
+            "status": "Success",
+            "timestamp": 1700000000000
+        },
+        "repayMargin": {
+            "id": "repay123",
+            "symbol": "USDC",
+            "amount": "1000",
+            "status": "Success",
+            "timestamp": 1700000000000
+        },
+        "fetchBorrowInterest": [
+            {
+                "symbol": "USDC",
+                "interest": "5.25",
+                "timestamp": 1700000000000,
+                "principal": "1000",
+                "rate": "0.05"
+            }
+        ],
+        "fetchDepositAddress": {
+            "address": "0xABCDEF1234567890abcdef1234567890ABCDEF12",
+            "blockchain": "Ethereum",
+            "memo": null
+        },
+        "fetchTradingFees": {
+            "autoBorrowSettlements": true,
+            "autoLend": true,
+            "autoRealizePnl": true,
+            "autoRepayBorrows": true,
+            "borrowLimit": "10000",
+            "futuresMakerFee": "5",
+            "futuresTakerFee": "10",
+            "leverageLimit": "20",
+            "limitOrders": 0,
+            "liquidating": false,
+            "positionLimit": "100000",
+            "spotMakerFee": "0",
+            "spotTakerFee": "20",
+            "triggerOrders": 0
+        },
+        "fetchSettlementHistory": [
+            {
+                "symbol": "BTC_USDC_20240329",
+                "settlementPrice": "69420.50",
+                "settlementTime": "1711728000000",
+                "quantity": "0.5",
+                "pnl": "1250.25",
+                "fee": "12.50"
+            }
+        ],
+        "fetchPnlHistory": [
+            {
+                "symbol": "SOL_USDC_PERP",
+                "pnl": "125.50",
+                "timestamp": "1703123456789",
+                "side": "Buy",
+                "quantity": "10",
+                "price": "100.50",
+                "fee": "1.25"
+            }
+        ],
+        "createStopLossOrder": {
+            "id": "111063070525358080",
+            "clientOrderId": "test_stop_loss_1700000000000",
+            "symbol": "SOL_USDC_PERP",
+            "side": "Ask",
+            "orderType": "StopMarket",
+            "timeInForce": "GTC",
+            "price": null,
+            "triggerPrice": "90",
+            "avgFillPrice": "0",
+            "state": "New",
+            "marketState": "Open",
+            "remainingQuantity": "1",
+            "filledQuantity": "0",
+            "orderQuantity": "1",
+            "createdAt": 1700000000000,
+            "postOnly": false
+        },
+        "createTakeProfitOrder": {
+            "id": "111063070525358081",
+            "clientOrderId": "test_take_profit_1700000000000",
+            "symbol": "SOL_USDC_PERP",
+            "side": "Ask",
+            "orderType": "TakeProfitLimit",
+            "timeInForce": "GTC",
+            "price": "111",
+            "triggerPrice": "110",
+            "avgFillPrice": "0",
+            "state": "New",
+            "marketState": "Open",
+            "remainingQuantity": "1",
+            "filledQuantity": "0",
+            "orderQuantity": "1",
+            "createdAt": 1700000000000,
+            "postOnly": false
         }
     }
 }

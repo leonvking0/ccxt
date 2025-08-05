@@ -115,6 +115,7 @@ import zonda from './src/zonda.js';
 import alpacaPro from './src/pro/alpaca.js';
 import apexPro from './src/pro/apex.js';
 import ascendexPro from './src/pro/ascendex.js';
+import backpackPro from './src/pro/backpack.js';
 import bequantPro from './src/pro/bequant.js';
 import binancePro from './src/pro/binance.js';
 import binancecoinmPro from './src/pro/binancecoinm.js';
@@ -298,6 +299,7 @@ declare const pro: {
     alpaca: typeof alpacaPro;
     apex: typeof apexPro;
     ascendex: typeof ascendexPro;
+    backpack: typeof backpackPro;
     bequant: typeof bequantPro;
     binance: typeof binancePro;
     binancecoinm: typeof binancecoinmPro;
@@ -378,6 +380,7 @@ declare const ccxt: {
         alpaca: typeof alpacaPro;
         apex: typeof apexPro;
         ascendex: typeof ascendexPro;
+        backpack: typeof backpackPro;
         bequant: typeof bequantPro;
         binance: typeof binancePro;
         binancecoinm: typeof binancecoinmPro;

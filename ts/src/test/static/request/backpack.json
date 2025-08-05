@@ -325,6 +325,195 @@
                 ],
                 "output": "address=11111111111111111111111111111111&blockchain=Solana&clientId=withdraw_1700000000000&instruction=withdraw&memo=test-memo&quantity=10&symbol=SOL&timestamp=1700000000000&window=5000"
             }
+        ],
+        "fetchPosition": [
+            {
+                "description": "Fetch single position",
+                "method": "fetchPosition",
+                "url": "https://api.backpack.exchange/api/v1/position?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"],
+                "output": "instruction=positionQuery&symbol=SOL_USDC_PERP&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchPositions": [
+            {
+                "description": "Fetch all positions",
+                "method": "fetchPositions",
+                "url": "https://api.backpack.exchange/api/v1/position",
+                "input": [],
+                "output": "instruction=positionQuery&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchFundingRate": [
+            {
+                "description": "Fetch funding rate for perpetual",
+                "method": "fetchFundingRate",
+                "url": "https://api.backpack.exchange/api/v1/fundingRates?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"]
+            }
+        ],
+        "fetchFundingRateHistory": [
+            {
+                "description": "Fetch funding rate history",
+                "method": "fetchFundingRateHistory",
+                "url": "https://api.backpack.exchange/wapi/v1/history/funding?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"],
+                "output": "instruction=fundingHistoryQueryAll&symbol=SOL_USDC_PERP&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchMarkPrice": [
+            {
+                "description": "Fetch mark price",
+                "method": "fetchMarkPrice",
+                "url": "https://api.backpack.exchange/api/v1/markPrices?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"]
+            }
+        ],
+        "fetchOpenInterest": [
+            {
+                "description": "Fetch open interest",
+                "method": "fetchOpenInterest",
+                "url": "https://api.backpack.exchange/api/v1/openInterest?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"]
+            }
+        ],
+        "fetchBorrowRates": [
+            {
+                "description": "Fetch all borrow rates",
+                "method": "fetchBorrowRates",
+                "url": "https://api.backpack.exchange/api/v1/borrowLend/markets",
+                "input": []
+            },
+            {
+                "description": "Fetch borrow rate for specific asset",
+                "method": "fetchBorrowRates",
+                "url": "https://api.backpack.exchange/api/v1/borrowLend/markets?asset=USDC",
+                "input": ["USDC"]
+            }
+        ],
+        "fetchBorrowRateHistory": [
+            {
+                "description": "Fetch borrow rate history",
+                "method": "fetchBorrowRateHistory",
+                "url": "https://api.backpack.exchange/api/v1/borrowLend/markets/history?asset=USDC",
+                "input": ["USDC"]
+            }
+        ],
+        "borrowMargin": [
+            {
+                "description": "Borrow USDC",
+                "method": "borrowMargin",
+                "url": "https://api.backpack.exchange/api/v1/borrowLend",
+                "input": ["USDC", 1000],
+                "output": "instruction=borrowLendExecute&quantity=1000&side=Borrow&symbol=USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "repayMargin": [
+            {
+                "description": "Repay USDC",
+                "method": "repayMargin",
+                "url": "https://api.backpack.exchange/api/v1/borrowLend",
+                "input": ["USDC", 1000],
+                "output": "instruction=borrowLendExecute&quantity=1000&side=Repay&symbol=USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchBorrowInterest": [
+            {
+                "description": "Fetch borrow interest history",
+                "method": "fetchBorrowInterest",
+                "url": "https://api.backpack.exchange/wapi/v1/history/interest?symbol=USDC",
+                "input": ["USDC"],
+                "output": "instruction=interestHistoryQueryAll&symbol=USDC&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchDepositAddress": [
+            {
+                "description": "Fetch deposit address for USDC",
+                "method": "fetchDepositAddress",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/deposit/address?blockchain=USDC",
+                "input": ["USDC"],
+                "output": "blockchain=USDC&instruction=depositAddressQuery&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch deposit address with network",
+                "method": "fetchDepositAddress",
+                "url": "https://api.backpack.exchange/wapi/v1/capital/deposit/address?blockchain=Ethereum",
+                "input": ["USDC", {"network": "ETH"}],
+                "output": "blockchain=Ethereum&instruction=depositAddressQuery&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchTradingFees": [
+            {
+                "description": "Fetch trading fees",
+                "method": "fetchTradingFees",
+                "url": "https://api.backpack.exchange/api/v1/account",
+                "input": [],
+                "output": "instruction=accountQuery&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchSettlementHistory": [
+            {
+                "description": "Fetch settlement history",
+                "method": "fetchSettlementHistory",
+                "url": "https://api.backpack.exchange/wapi/v1/history/settlement",
+                "input": [],
+                "output": "instruction=settlementHistoryQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch settlement history for symbol",
+                "method": "fetchSettlementHistory",
+                "url": "https://api.backpack.exchange/wapi/v1/history/settlement?symbol=BTC_USDC_20240329",
+                "input": ["BTC/USDC:USDC-20240329"],
+                "output": "instruction=settlementHistoryQueryAll&symbol=BTC_USDC_20240329&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "fetchPnlHistory": [
+            {
+                "description": "Fetch PnL history",
+                "method": "fetchPnlHistory",
+                "url": "https://api.backpack.exchange/wapi/v1/history/pnl",
+                "input": [],
+                "output": "instruction=pnlHistoryQueryAll&timestamp=1700000000000&window=5000"
+            },
+            {
+                "description": "Fetch PnL history for symbol",
+                "method": "fetchPnlHistory",
+                "url": "https://api.backpack.exchange/wapi/v1/history/pnl?symbol=SOL_USDC_PERP",
+                "input": ["SOL/USDC:USDC"],
+                "output": "instruction=pnlHistoryQueryAll&symbol=SOL_USDC_PERP&timestamp=1700000000000&window=5000"
+            }
+        ],
+        "createStopLossOrder": [
+            {
+                "description": "Create stop loss market order",
+                "method": "createStopLossOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": ["SOL/USDC:USDC", "market", "sell", 1, 90],
+                "output": "instruction=orderExecute&orderType=StopMarket&quantity=1&side=Ask&symbol=SOL_USDC_PERP&timestamp=1700000000000&triggerPrice=90&window=5000"
+            },
+            {
+                "description": "Create stop loss limit order",
+                "method": "createStopLossOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": ["SOL/USDC:USDC", "limit", "sell", 1, 90, 89],
+                "output": "instruction=orderExecute&orderType=StopLimit&price=89&quantity=1&side=Ask&symbol=SOL_USDC_PERP&timestamp=1700000000000&triggerPrice=90&window=5000"
+            }
+        ],
+        "createTakeProfitOrder": [
+            {
+                "description": "Create take profit market order",
+                "method": "createTakeProfitOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": ["SOL/USDC:USDC", "market", "sell", 1, 110],
+                "output": "instruction=orderExecute&orderType=TakeProfitMarket&quantity=1&side=Ask&symbol=SOL_USDC_PERP&timestamp=1700000000000&triggerPrice=110&window=5000"
+            },
+            {
+                "description": "Create take profit limit order",
+                "method": "createTakeProfitOrder",
+                "url": "https://api.backpack.exchange/api/v1/orders/execute",
+                "input": ["SOL/USDC:USDC", "limit", "sell", 1, 110, 111],
+                "output": "instruction=orderExecute&orderType=TakeProfitLimit&price=111&quantity=1&side=Ask&symbol=SOL_USDC_PERP&timestamp=1700000000000&triggerPrice=110&window=5000"
+            }
         ]
     }
 }

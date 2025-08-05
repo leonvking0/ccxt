@@ -27,7 +27,8 @@ export default class backpack extends Exchange {
             'has': {
                 'CORS': undefined,
                 'spot': true,
-                'margin': false,
+                'margin': true,
+                'futures': true,
                 'swap': true,
                 'future': true,
                 'option': false,
@@ -2362,5 +2363,220 @@ export default class backpack extends Exchange {
             };
         }
         return result;
+    }
+    async fetchSettlementHistory(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchSettlementHistory
+         * @description fetch settlement history for dated futures
+         * @see https://docs.backpack.exchange/#tag/History/operation/get_settlementHistory
+         * @param {string} symbol unified market symbol
+         * @param {int} [since] timestamp in ms of the earliest settlement
+         * @param {int} [limit] max number of settlements to return
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [settlement history objects]
+         */
+        await this.loadMarkets();
+        let market = undefined;
+        const request = {};
+        if (symbol !== undefined) {
+            market = this.market(symbol);
+            request['symbol'] = market['id'];
+        }
+        if (since !== undefined) {
+            request['startTime'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.wapiGetHistorySettlement(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "BTC_USDC_20240329",
+        //             "settlementPrice": "69420.50",
+        //             "settlementTime": "1711728000000",
+        //             "quantity": "0.5",
+        //             "pnl": "1250.25",
+        //             "fee": "12.50"
+        //         }
+        //     ]
+        //
+        return this.parseSettlements(response, market, since, limit);
+    }
+    parseSettlement(settlement, market = undefined) {
+        //
+        //     {
+        //         "symbol": "BTC_USDC_20240329",
+        //         "settlementPrice": "69420.50",
+        //         "settlementTime": "1711728000000",
+        //         "quantity": "0.5",
+        //         "pnl": "1250.25",
+        //         "fee": "12.50"
+        //     }
+        //
+        const marketId = this.safeString(settlement, 'symbol');
+        const timestamp = this.safeInteger(settlement, 'settlementTime');
+        return {
+            'info': settlement,
+            'symbol': this.safeSymbol(marketId, market),
+            'price': this.safeNumber(settlement, 'settlementPrice'),
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'quantity': this.safeNumber(settlement, 'quantity'),
+            'pnl': this.safeNumber(settlement, 'pnl'),
+            'fee': this.safeNumber(settlement, 'fee'),
+        };
+    }
+    parseSettlements(settlements, market = undefined, since = undefined, limit = undefined) {
+        const result = [];
+        for (let i = 0; i < settlements.length; i++) {
+            result.push(this.parseSettlement(settlements[i], market));
+        }
+        const sorted = this.sortBy(result, 'timestamp');
+        return this.filterBySinceLimit(sorted, since, limit);
+    }
+    async fetchPnlHistory(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#fetchPnlHistory
+         * @description fetch realized PnL history
+         * @see https://docs.backpack.exchange/#tag/History/operation/get_pnlHistory
+         * @param {string} symbol unified market symbol
+         * @param {int} [since] timestamp in ms of the earliest PnL entry
+         * @param {int} [limit] max number of PnL entries to return
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [pnl history objects]
+         */
+        await this.loadMarkets();
+        let market = undefined;
+        const request = {};
+        if (symbol !== undefined) {
+            market = this.market(symbol);
+            request['symbol'] = market['id'];
+        }
+        if (since !== undefined) {
+            request['startTime'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.wapiGetHistoryPnl(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC_PERP",
+        //             "pnl": "125.50",
+        //             "timestamp": "1703123456789",
+        //             "side": "Buy",
+        //             "quantity": "10",
+        //             "price": "100.50",
+        //             "fee": "1.25"
+        //         }
+        //     ]
+        //
+        return this.parsePnlHistory(response, market, since, limit);
+    }
+    parsePnl(pnl, market = undefined) {
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "pnl": "125.50",
+        //         "timestamp": "1703123456789",
+        //         "side": "Buy",
+        //         "quantity": "10",
+        //         "price": "100.50",
+        //         "fee": "1.25"
+        //     }
+        //
+        const marketId = this.safeString(pnl, 'symbol');
+        const timestamp = this.safeInteger(pnl, 'timestamp');
+        return {
+            'info': pnl,
+            'symbol': this.safeSymbol(marketId, market),
+            'pnl': this.safeNumber(pnl, 'pnl'),
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'side': this.safeStringLower(pnl, 'side'),
+            'quantity': this.safeNumber(pnl, 'quantity'),
+            'price': this.safeNumber(pnl, 'price'),
+            'fee': this.safeNumber(pnl, 'fee'),
+        };
+    }
+    parsePnlHistory(pnls, market = undefined, since = undefined, limit = undefined) {
+        const result = [];
+        for (let i = 0; i < pnls.length; i++) {
+            result.push(this.parsePnl(pnls[i], market));
+        }
+        const sorted = this.sortBy(result, 'timestamp');
+        return this.filterBySinceLimit(sorted, since, limit);
+    }
+    async createStopLossOrder(symbol, type, side, amount, stopPrice, price = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#createStopLossOrder
+         * @description create a stop loss order
+         * @see https://docs.backpack.exchange/#tag/Order/operation/create_order
+         * @param {string} symbol unified symbol of the market to create an order in
+         * @param {string} type 'market' or 'limit'
+         * @param {string} side 'buy' or 'sell'
+         * @param {float} amount how much you want to trade in units of base currency
+         * @param {float} stopPrice the price at which the stop order is triggered
+         * @param {float} [price] the price for the limit order
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {string} [params.triggerType] 'mark' or 'last' (default is 'last')
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        if (type === 'market') {
+            // For market stop-loss orders, price is not required
+            return await this.createOrder(symbol, 'STOP_MARKET', side, amount, undefined, {
+                'triggerPrice': stopPrice,
+                ...params,
+            });
+        }
+        else {
+            // For limit stop-loss orders, price is required
+            if (price === undefined) {
+                throw new ArgumentsRequired(this.id + ' createStopLossOrder() requires a price argument for limit orders');
+            }
+            return await this.createOrder(symbol, 'STOP_LIMIT', side, amount, price, {
+                'triggerPrice': stopPrice,
+                ...params,
+            });
+        }
+    }
+    async createTakeProfitOrder(symbol, type, side, amount, takeProfitPrice, price = undefined, params = {}) {
+        /**
+         * @method
+         * @name backpack#createTakeProfitOrder
+         * @description create a take profit order
+         * @see https://docs.backpack.exchange/#tag/Order/operation/create_order
+         * @param {string} symbol unified symbol of the market to create an order in
+         * @param {string} type 'market' or 'limit'
+         * @param {string} side 'buy' or 'sell'
+         * @param {float} amount how much you want to trade in units of base currency
+         * @param {float} takeProfitPrice the price at which the take profit order is triggered
+         * @param {float} [price] the price for the limit order
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @param {string} [params.triggerType] 'mark' or 'last' (default is 'last')
+         * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+         */
+        if (type === 'market') {
+            // For market take-profit orders, price is not required
+            return await this.createOrder(symbol, 'TAKE_PROFIT_MARKET', side, amount, undefined, {
+                'triggerPrice': takeProfitPrice,
+                ...params,
+            });
+        }
+        else {
+            // For limit take-profit orders, price is required
+            if (price === undefined) {
+                throw new ArgumentsRequired(this.id + ' createTakeProfitOrder() requires a price argument for limit orders');
+            }
+            return await this.createOrder(symbol, 'TAKE_PROFIT_LIMIT', side, amount, price, {
+                'triggerPrice': takeProfitPrice,
+                ...params,
+            });
+        }
     }
 }

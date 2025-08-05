@@ -152,6 +152,7 @@ import zonda from './src/zonda.js';
 import alpacaPro from './src/pro/alpaca.js';
 import apexPro from './src/pro/apex.js';
 import ascendexPro from './src/pro/ascendex.js';
+import backpackPro from './src/pro/backpack.js';
 import bequantPro from './src/pro/bequant.js';
 import binancePro from './src/pro/binance.js';
 import binancecoinmPro from './src/pro/binancecoinm.js';
@@ -335,6 +336,7 @@ const pro = {
     'alpaca': alpacaPro,
     'apex': apexPro,
     'ascendex': ascendexPro,
+    'backpack': backpackPro,
     'bequant': bequantPro,
     'binance': binancePro,
     'binancecoinm': binancecoinmPro,
