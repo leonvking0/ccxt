@@ -36,7 +36,7 @@ export default class backpack extends Exchange {
                 'fetchBalance': true,
                 'fetchClosedOrders': true,
                 'fetchCurrencies': true,
-                'fetchDepositAddress': false,
+                'fetchDepositAddress': true,
                 'fetchDeposits': true,
                 'fetchMarkets': true,
                 'fetchMyTrades': true,
@@ -54,6 +54,14 @@ export default class backpack extends Exchange {
                 'fetchTradingFees': false,
                 'fetchWithdrawals': true,
                 'withdraw': true,
+                'fetchPosition': true,
+                'fetchPositions': true,
+                'fetchFundingRate': true,
+                'fetchFundingRateHistory': true,
+                'fetchMarkPrice': true,
+                'fetchOpenInterest': true,
+                'fetchBorrowRates': true,
+                'fetchBorrowRateHistory': true,
             },
             'timeframes': {
                 '1m': '1m',
@@ -99,6 +107,10 @@ export default class backpack extends Exchange {
                         'klines': 1,
                         'openInterest': 1,
                         'wallets': 1,
+                        'fundingRates': 1,
+                        'markPrices': 1,
+                        'borrowLend/markets': 1,
+                        'borrowLend/markets/history': 1,
                     },
                 },
                 'private': {
@@ -106,16 +118,17 @@ export default class backpack extends Exchange {
                         'account': 1,
                         'capital': 1,
                         'capital/collateral': 1,
+                        'position': 1,
                         'depositAddress': 1,
                         'orders': 1,
                         'order': 1,
                         'fills': 1,
                         'positions': 1,
-                        'capital/deposit-address': 1,
                     },
                     'post': {
                         'orders': 1,
                         'capital/dust/convert': 1,
+                        'borrowLend': 1,
                     },
                     'put': {
                         'account': 1,
@@ -131,6 +144,11 @@ export default class backpack extends Exchange {
                         'history/orders': 1,
                         'capital/deposits': 1,
                         'capital/withdrawals': 1,
+                        'history/funding': 1,
+                        'history/interest': 1,
+                        'history/pnl': 1,
+                        'history/settlement': 1,
+                        'capital/deposit/address': 1,
                     },
                     'post': {
                         'capital/withdraw': 1,
@@ -185,8 +203,14 @@ export default class backpack extends Exchange {
                     'GET:positions': 'positionQuery',
                     'GET:capital/deposits': 'depositQueryAll',
                     'GET:capital/withdrawals': 'withdrawalQueryAll',
-                    'GET:capital/deposit-address': 'depositAddressQuery',
+                    'GET:position': 'positionQuery',
+                    'GET:history/funding': 'fundingHistoryQueryAll',
+                    'GET:history/interest': 'interestHistoryQueryAll',
+                    'GET:history/pnl': 'pnlHistoryQueryAll',
+                    'GET:history/settlement': 'settlementHistoryQueryAll',
+                    'GET:capital/deposit/address': 'depositAddressQuery',
                     'POST:orders': 'orderExecute',
+                    'POST:borrowLend': 'borrowLendExecute',
                     'POST:capital/withdraw': 'withdraw',
                     'DELETE:order': 'orderCancel',
                     'DELETE:orders': 'orderCancelAll',
@@ -1618,5 +1642,527 @@ export default class backpack extends Exchange {
         //     }
         //
         return this.parseTransaction(response, currency);
+    }
+    /**
+     * @method
+     * @name backpack#fetchPosition
+     * @description fetch a single futures position
+     * @see https://docs.backpack.exchange/#tag/Position/operation/get_position
+     * @param {string} symbol unified market symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
+     */
+    async fetchPosition(symbol, params = {}) {
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'symbol': market['id'],
+        };
+        const response = await this.privateGetPosition(this.extend(request, params));
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "netQuantity": "5",
+        //         "netExposureQuantity": "6",
+        //         "netExposureNotional": "732",
+        //         "entryPrice": "122",
+        //         "markPrice": "122",
+        //         "breakEvenPrice": "123",
+        //         "estimatedLiquidationPrice": "50",
+        //         "initialMarginFraction": "0.5",
+        //         "maintenanceMarginFraction": "0.01",
+        //         "pnlRealised": "-1",
+        //         "pnlUnrealised": "0",
+        //         "positionId": "1111343026172067"
+        //     }
+        //
+        return this.parsePosition(response, market);
+    }
+    /**
+     * @method
+     * @name backpack#fetchPositions
+     * @description fetch futures positions
+     * @see https://docs.backpack.exchange/#tag/Position/operation/get_position
+     * @param {string[]|undefined} symbols list of unified market symbols
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object[]} a list of [position structures]{@link https://docs.ccxt.com/#/?id=position-structure}
+     */
+    async fetchPositions(symbols = undefined, params = {}) {
+        await this.loadMarkets();
+        let market = undefined;
+        const request = {};
+        if (symbols !== undefined) {
+            // backpack only supports fetching one position at a time
+            if (symbols.length !== 1) {
+                throw new BadRequest(this.id + ' fetchPositions() requires exactly one symbol');
+            }
+            market = this.market(symbols[0]);
+            request['symbol'] = market['id'];
+        }
+        const response = await this.privateGetPosition(this.extend(request, params));
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "netQuantity": "5",
+        //         "netExposureQuantity": "6",
+        //         "netExposureNotional": "732",
+        //         "entryPrice": "122",
+        //         "markPrice": "122",
+        //         "breakEvenPrice": "123",
+        //         "estimatedLiquidationPrice": "50",
+        //         "initialMarginFraction": "0.5",
+        //         "maintenanceMarginFraction": "0.01",
+        //         "pnlRealised": "-1",
+        //         "pnlUnrealised": "0",
+        //         "positionId": "1111343026172067"
+        //     }
+        //
+        // if no position exists, response will be empty
+        if (response === undefined || response === null || Object.keys(response).length === 0) {
+            return [];
+        }
+        const position = this.parsePosition(response, market);
+        return [position];
+    }
+    parsePosition(position, market = undefined) {
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "netQuantity": "5",
+        //         "netExposureQuantity": "6",
+        //         "netExposureNotional": "732",
+        //         "entryPrice": "122",
+        //         "markPrice": "122",
+        //         "breakEvenPrice": "123",
+        //         "estimatedLiquidationPrice": "50",
+        //         "initialMarginFraction": "0.5",
+        //         "maintenanceMarginFraction": "0.01",
+        //         "pnlRealised": "-1",
+        //         "pnlUnrealised": "0",
+        //         "positionId": "1111343026172067"
+        //     }
+        //
+        const marketId = this.safeString(position, 'symbol');
+        market = this.safeMarket(marketId, market, '_');
+        const contracts = this.safeNumber(position, 'netQuantity');
+        const contractSize = market['contractSize'];
+        const markPrice = this.safeNumber(position, 'markPrice');
+        const notional = this.safeNumber(position, 'netExposureNotional');
+        const side = (contracts > 0) ? 'long' : 'short';
+        const absContracts = Math.abs(contracts);
+        const entryPrice = this.safeNumber(position, 'entryPrice');
+        const unrealizedPnl = this.safeNumber(position, 'pnlUnrealised');
+        const realizedPnl = this.safeNumber(position, 'pnlRealised');
+        const initialMargin = this.safeNumber(position, 'initialMarginFraction');
+        const maintenanceMargin = this.safeNumber(position, 'maintenanceMarginFraction');
+        const liquidationPrice = this.safeNumber(position, 'estimatedLiquidationPrice');
+        const breakEvenPrice = this.safeNumber(position, 'breakEvenPrice');
+        const percentage = (entryPrice && markPrice) ? ((markPrice - entryPrice) / entryPrice) * 100 : undefined;
+        const marginRatio = undefined; // TODO: calculate from collateral and notional
+        return this.safePosition({
+            'id': this.safeString(position, 'positionId'),
+            'symbol': market['symbol'],
+            'contracts': absContracts,
+            'contractSize': contractSize,
+            'entryPrice': entryPrice,
+            'markPrice': markPrice,
+            'notional': notional,
+            'initialMargin': initialMargin,
+            'maintenanceMargin': maintenanceMargin,
+            'unrealizedPnl': unrealizedPnl,
+            'realizedPnl': realizedPnl,
+            'percentage': percentage,
+            'marginRatio': marginRatio,
+            'liquidationPrice': liquidationPrice,
+            'side': side,
+            'info': position,
+        });
+    }
+    /**
+     * @method
+     * @name backpack#fetchFundingRate
+     * @description fetch the current funding rate for a perpetual market
+     * @see https://docs.backpack.exchange/#tag/Futures/operation/get_fundingRates
+     * @param {string} symbol unified market symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
+     */
+    async fetchFundingRate(symbol, params = {}) {
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'symbol': market['id'],
+        };
+        const response = await this.publicGetFundingRates(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC_PERP",
+        //             "fundingRate": "0.0001",
+        //             "nextFundingTime": 1700000000000,
+        //             "fundingInterval": 28800000,
+        //             "upperBound": "0.02",
+        //             "lowerBound": "-0.02"
+        //         }
+        //     ]
+        //
+        const result = this.safeValue(response, 0, {});
+        return this.parseFundingRate(result, market);
+    }
+    /**
+     * @method
+     * @name backpack#fetchFundingRateHistory
+     * @description fetch the history of funding payments for a perpetual market
+     * @see https://docs.backpack.exchange/#tag/History/operation/get_history_funding
+     * @param {string} symbol unified market symbol
+     * @param {int} [since] timestamp in ms of the earliest funding payment
+     * @param {int} [limit] the maximum number of funding payments to retrieve
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object[]} a list of [funding history structures]{@link https://docs.ccxt.com/#/?id=funding-history-structure}
+     */
+    async fetchFundingRateHistory(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        await this.loadMarkets();
+        let market = undefined;
+        const request = {};
+        if (symbol !== undefined) {
+            market = this.market(symbol);
+            request['symbol'] = market['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.wapiGetHistoryFunding(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC_PERP",
+        //             "fundingRate": "0.0001",
+        //             "fundingTime": 1700000000000,
+        //             "payment": "0.123",
+        //             "netQuantity": "100",
+        //             "markPrice": "123.45"
+        //         }
+        //     ]
+        //
+        return this.parseFundingRateHistories(response, market, since, limit);
+    }
+    parseFundingRate(contract, market = undefined) {
+        // Backpack specific implementation - expects a dict not a string
+        const fundingRate = typeof contract === 'string' ? {} : contract;
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "fundingRate": "0.0001",
+        //         "nextFundingTime": 1700000000000,
+        //         "fundingInterval": 28800000,
+        //         "upperBound": "0.02",
+        //         "lowerBound": "-0.02"
+        //     }
+        //
+        const marketId = this.safeString(fundingRate, 'symbol');
+        const fundingTimestamp = this.safeInteger(fundingRate, 'nextFundingTime');
+        const fundingInterval = this.safeInteger(fundingRate, 'fundingInterval');
+        return {
+            'info': fundingRate,
+            'symbol': this.safeSymbol(marketId, market, '_'),
+            'markPrice': undefined,
+            'indexPrice': undefined,
+            'interestRate': undefined,
+            'estimatedSettlePrice': undefined,
+            'timestamp': undefined,
+            'datetime': undefined,
+            'fundingRate': this.safeNumber(fundingRate, 'fundingRate'),
+            'fundingTimestamp': fundingTimestamp,
+            'fundingDatetime': this.iso8601(fundingTimestamp),
+            'nextFundingRate': undefined,
+            'nextFundingTimestamp': undefined,
+            'nextFundingDatetime': undefined,
+            'previousFundingRate': undefined,
+            'previousFundingTimestamp': undefined,
+            'previousFundingDatetime': undefined,
+        };
+    }
+    parseFundingRateHistory(fundingHistory, market = undefined) {
+        //
+        //     {
+        //         "symbol": "SOL_USDC_PERP",
+        //         "fundingRate": "0.0001",
+        //         "fundingTime": 1700000000000,
+        //         "payment": "0.123",
+        //         "netQuantity": "100",
+        //         "markPrice": "123.45"
+        //     }
+        //
+        const marketId = this.safeString(fundingHistory, 'symbol');
+        const timestamp = this.safeInteger(fundingHistory, 'fundingTime');
+        const fundingRate = this.safeNumber(fundingHistory, 'fundingRate');
+        return {
+            'info': fundingHistory,
+            'symbol': this.safeSymbol(marketId, market, '_'),
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'fundingRate': fundingRate,
+        };
+    }
+    parseFundingRateHistories(fundingHistories, market = undefined, since = undefined, limit = undefined) {
+        const result = [];
+        for (let i = 0; i < fundingHistories.length; i++) {
+            const parsed = this.parseFundingRateHistory(fundingHistories[i], market);
+            result.push(parsed);
+        }
+        const sorted = this.sortBy(result, 'timestamp');
+        return this.filterBySinceLimit(sorted, since, limit, 'timestamp');
+    }
+    /**
+     * @method
+     * @name backpack#fetchMarkPrice
+     * @description fetch the mark price for a futures market
+     * @see https://docs.backpack.exchange/#tag/Futures/operation/get_markPrices
+     * @param {string} symbol unified market symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a dictionary with mark price information for the market
+     */
+    async fetchMarkPrice(symbol, params = {}) {
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'symbol': market['id'],
+        };
+        const response = await this.publicGetMarkPrices(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC_PERP",
+        //             "markPrice": "123.45",
+        //             "indexPrice": "123.44",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        const result = this.safeValue(response, 0, {});
+        const markPrice = this.safeNumber(result, 'markPrice');
+        const indexPrice = this.safeNumber(result, 'indexPrice');
+        const timestamp = this.safeInteger(result, 'timestamp');
+        return this.safeTicker({
+            'symbol': market['symbol'],
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'high': undefined,
+            'low': undefined,
+            'bid': undefined,
+            'bidVolume': undefined,
+            'ask': undefined,
+            'askVolume': undefined,
+            'vwap': undefined,
+            'open': undefined,
+            'close': markPrice,
+            'last': markPrice,
+            'previousClose': undefined,
+            'change': undefined,
+            'percentage': undefined,
+            'average': undefined,
+            'baseVolume': undefined,
+            'quoteVolume': undefined,
+            'info': result,
+        }, market);
+    }
+    /**
+     * @method
+     * @name backpack#fetchOpenInterest
+     * @description fetch the open interest for a futures market
+     * @see https://docs.backpack.exchange/#tag/Futures/operation/get_openInterest
+     * @param {string} symbol unified market symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} an open interest structure
+     */
+    async fetchOpenInterest(symbol, params = {}) {
+        await this.loadMarkets();
+        const market = this.market(symbol);
+        const request = {
+            'symbol': market['id'],
+        };
+        const response = await this.publicGetOpenInterest(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "SOL_USDC_PERP",
+        //             "openInterest": "123456",
+        //             "openInterestQuote": "15432000",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        const result = this.safeValue(response, 0, {});
+        const openInterest = this.safeNumber(result, 'openInterest');
+        const openInterestValue = this.safeNumber(result, 'openInterestQuote');
+        const timestamp = this.safeInteger(result, 'timestamp');
+        return {
+            'symbol': market['symbol'],
+            'openInterestAmount': openInterest,
+            'openInterestValue': openInterestValue,
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'info': result,
+        };
+    }
+    /**
+     * @method
+     * @name backpack#fetchBorrowRates
+     * @description fetch the borrow and lend rates for a currency
+     * @see https://docs.backpack.exchange/#tag/Borrow-Lend-Markets/operation/get_borrowLend_markets
+     * @param {string} [code] unified currency code
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a list of borrow rate structures
+     */
+    async fetchBorrowRates(code = undefined, params = {}) {
+        await this.loadMarkets();
+        const request = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency(code);
+            request['symbol'] = currency['id'];
+        }
+        const response = await this.publicGetBorrowLendMarkets(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "USDC",
+        //             "borrowRate": "0.05",
+        //             "lendRate": "0.04",
+        //             "maxBorrowAmount": "1000000",
+        //             "maxLendAmount": "5000000",
+        //             "utilizationRate": "0.75"
+        //         }
+        //     ]
+        //
+        const rates = {};
+        for (let i = 0; i < response.length; i++) {
+            const rate = response[i];
+            const currencyId = this.safeString(rate, 'symbol');
+            const currencyCode = this.safeCurrencyCode(currencyId, currency);
+            rates[currencyCode] = this.parseBorrowRate(rate, currency);
+        }
+        return rates;
+    }
+    /**
+     * @method
+     * @name backpack#fetchBorrowRateHistory
+     * @description fetch the historical borrow and lend rates for a currency
+     * @see https://docs.backpack.exchange/#tag/Borrow-Lend-Markets/operation/get_borrowLend_markets_history
+     * @param {string} code unified currency code
+     * @param {int} [since] timestamp in ms of the earliest rate
+     * @param {int} [limit] the maximum number of rate structures to retrieve
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object[]} a list of borrow rate structures
+     */
+    async fetchBorrowRateHistory(code, since = undefined, limit = undefined, params = {}) {
+        await this.loadMarkets();
+        const currency = this.currency(code);
+        const request = {
+            'symbol': currency['id'],
+        };
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.publicGetBorrowLendMarketsHistory(this.extend(request, params));
+        //
+        //     [
+        //         {
+        //             "symbol": "USDC",
+        //             "borrowRate": "0.05",
+        //             "lendRate": "0.04",
+        //             "utilizationRate": "0.75",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        const rates = [];
+        for (let i = 0; i < response.length; i++) {
+            rates.push(this.parseBorrowRate(response[i], currency));
+        }
+        return this.filterBySinceLimit(rates, since, limit, 'timestamp');
+    }
+    parseBorrowRate(borrowRate, currency = undefined) {
+        //
+        //     {
+        //         "symbol": "USDC",
+        //         "borrowRate": "0.05",
+        //         "lendRate": "0.04",
+        //         "maxBorrowAmount": "1000000",
+        //         "maxLendAmount": "5000000",
+        //         "utilizationRate": "0.75",
+        //         "timestamp": 1700000000000
+        //     }
+        //
+        const currencyId = this.safeString(borrowRate, 'symbol');
+        const timestamp = this.safeInteger(borrowRate, 'timestamp');
+        return {
+            'currency': currency?.['code'] || this.safeCurrencyCode(currencyId),
+            'rate': this.safeNumber(borrowRate, 'borrowRate'),
+            'period': 365 * 86400000,
+            'timestamp': timestamp,
+            'datetime': this.iso8601(timestamp),
+            'info': borrowRate,
+        };
+    }
+    /**
+     * @method
+     * @name backpack#fetchDepositAddress
+     * @description fetch the deposit address for a currency on a specified network
+     * @see https://docs.backpack.exchange/#tag/Capital/operation/get_capital_deposit_address
+     * @param {string} code unified currency code
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.network] unified network code
+     * @returns {object} an address structure
+     */
+    async fetchDepositAddress(code, params = {}) {
+        await this.loadMarkets();
+        const currency = this.currency(code);
+        const request = {
+            'blockchain': currency['id'],
+        };
+        // check if network parameter is provided
+        const networkId = this.safeString(params, 'network');
+        if (networkId !== undefined) {
+            params = this.omit(params, 'network');
+            const networks = this.safeValue(currency, 'networks', {});
+            const network = this.safeValue(networks, networkId, {});
+            request['blockchain'] = this.safeString(network, 'id', networkId);
+        }
+        const response = await this.wapiGetCapitalDepositAddress(this.extend(request, params));
+        //
+        //     {
+        //         "address": "0x1234567890abcdef1234567890abcdef12345678",
+        //         "blockchain": "Ethereum",
+        //         "memo": null
+        //     }
+        //
+        return this.parseDepositAddress(response, currency);
+    }
+    parseDepositAddress(depositAddress, currency = undefined) {
+        //
+        //     {
+        //         "address": "0x1234567890abcdef1234567890abcdef12345678",
+        //         "blockchain": "Ethereum",
+        //         "memo": null
+        //     }
+        //
+        const address = this.safeString(depositAddress, 'address');
+        const tag = this.safeString(depositAddress, 'memo');
+        const networkId = this.safeString(depositAddress, 'blockchain');
+        this.checkAddress(address);
+        return {
+            'currency': currency?.['code'],
+            'address': address,
+            'tag': tag,
+            'network': this.networkIdToCode(networkId),
+            'info': depositAddress,
+        };
     }
 }
