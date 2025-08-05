@@ -6,13 +6,13 @@ This document tracks the implementation of Phase 3 for integrating Backpack Exch
 ## Status: IN PROGRESS 🚧
 **Start Date**: 2025-08-05
 **Target Completion**: 2025-08-10
-**Current Progress**: 45%
+**Current Progress**: 70%
 
 ## Phase 3 Objectives
 - [x] Implement futures-specific methods (positions, funding rates, mark prices, open interest) ✅
-- [x] Add margin/lending functionality (borrow rates, positions, history) ✅ (Partially - market queries done)
+- [x] Add margin/lending functionality (borrow rates, positions, history) ✅
 - [x] Implement remaining private methods (deposit addresses, trading fees, PnL history) ✅ (Partially - deposit address done)
-- [ ] Create WebSocket foundation and pro exchange skeleton
+- [x] Create WebSocket foundation and pro exchange skeleton ✅
 - [ ] Add comprehensive testing and documentation
 
 ---
@@ -74,19 +74,19 @@ This document tracks the implementation of Phase 3 for integrating Backpack Exch
   - Handle pagination
 
 ### 2.2 Borrow/Lend Operations
-- [ ] Implement `fetchBorrowInterest(code, since, limit)` - GET /wapi/v1/history/interest
+- [x] Implement `fetchBorrowInterest(code, since, limit)` - GET /wapi/v1/history/interest ✅ COMPLETED
   - Get interest payment history
   - Parse accrued interest amounts
   - Include payment timestamps
   - Instruction: `interestHistoryQueryAll`
 
-- [ ] Implement `borrowMargin(code, amount, params)` - POST /api/v1/borrowLend
+- [x] Implement `borrowMargin(code, amount, params)` - POST /api/v1/borrowLend ✅ COMPLETED
   - Execute borrow operation
   - Handle collateral requirements
   - Return transaction details
   - Instruction: `borrowLendExecute`
 
-- [ ] Implement `repayMargin(code, amount, params)` - POST /api/v1/borrowLend
+- [x] Implement `repayMargin(code, amount, params)` - POST /api/v1/borrowLend ✅ COMPLETED
   - Repay borrowed funds
   - Support partial/full repayment
   - Handle auto-repay settings
@@ -104,11 +104,12 @@ This document tracks the implementation of Phase 3 for integrating Backpack Exch
   - Handle network selection
   - Instruction: `depositAddressQuery`
 
-- [ ] Implement `fetchTradingFees(params)` - Parse from account data
+- [x] Implement `fetchTradingFees(params)` - Parse from account data ✅ COMPLETED
   - Get account-specific fee structure
   - Parse maker/taker rates
   - Differentiate spot vs futures fees
-  - May need to use account endpoint
+  - Uses GET /api/v1/account endpoint
+  - Converts basis points to decimals
 
 ### 3.2 Advanced History Methods
 - [ ] Implement `fetchSettlementHistory(symbol, since, limit)` - GET /wapi/v1/history/settlement
@@ -139,7 +140,7 @@ This document tracks the implementation of Phase 3 for integrating Backpack Exch
 ## 4. WebSocket Foundation
 
 ### 4.1 Pro Exchange Structure
-- [ ] Create `ts/src/pro/backpack.ts`
+- [x] Create `ts/src/pro/backpack.ts` ✅ COMPLETED
   - Extend from ccxtpro Exchange class
   - Import base backpack implementation
   - Define WebSocket capabilities
@@ -171,18 +172,18 @@ export default class backpack extends Exchange {
 ```
 
 ### 4.2 Authentication Setup
-- [ ] Implement WebSocket authentication
+- [x] Implement WebSocket authentication ✅ COMPLETED
   - ED25519 signature for "subscribe" instruction
   - Format: `instruction=subscribe&timestamp={ts}&window={window}`
   - Send signature in subscription message
 
 ### 4.3 Stream Management
-- [ ] Define stream name mappings
+- [x] Define stream name mappings ✅ COMPLETED
   - Public: `trades.{symbol}`, `depth.{symbol}`, `ticker.{symbol}`
   - Private: `account.orderUpdate`, `account.positionUpdate`
   - Klines: `kline.{interval}.{symbol}`
 
-- [ ] Create subscription message format
+- [x] Create subscription message format ✅ COMPLETED
   ```json
   {
     "method": "SUBSCRIBE",
@@ -325,8 +326,10 @@ export default class backpack extends Exchange {
   - Added parseBorrowRate helper method
   - Fixed type issues with Currency parameter
   - Implemented fetchDepositAddress with network support
-- [ ] Afternoon: Borrow/lend operations (In Progress)
-  - TODO: borrowMargin, repayMargin, fetchBorrowInterest
+- [x] Afternoon: Borrow/lend operations ✅ COMPLETED
+  - Implemented borrowMargin, repayMargin, fetchBorrowInterest
+  - Added parseMarginLoan and parseBorrowInterest helpers
+  - All methods pass TypeScript compilation and ESLint
 
 ### Day 3 - Additional Features
 - [ ] Morning: Deposit addresses and fees
@@ -416,6 +419,21 @@ export default class backpack extends Exchange {
    - fetchDepositAddress - Generate deposit addresses
    - parseDepositAddress - Address parsing with network support
 
+6. **Trading Fees** ✅
+   - fetchTradingFees - Get account-specific fees from account endpoint
+   - Converts basis points to decimals for spot and futures
+
+7. **Margin/Lending Operations** ✅
+   - borrowMargin - Execute borrow operations
+   - repayMargin - Repay borrowed funds
+   - fetchBorrowInterest - Get interest payment history
+
+8. **WebSocket Foundation** ✅
+   - Created pro/backpack.ts with WebSocket implementation
+   - Implemented watch methods: watchTicker, watchTrades, watchOrderBook, watchOHLCV
+   - Added authenticated streams: watchOrders, watchPositions
+   - ED25519 WebSocket authentication implemented
+
 ### Technical Achievements
 - All methods pass TypeScript compilation
 - ESLint compliance achieved
@@ -424,11 +442,8 @@ export default class backpack extends Exchange {
 - API method generation working correctly
 
 ### Still To Implement
-- Borrow/lend operations (borrowMargin, repayMargin)
-- Trading fees method
 - Advanced history methods (PnL, settlements)
 - Stop-loss/take-profit order wrappers
-- WebSocket foundation
 - Comprehensive testing suite
 
 ### Code Quality

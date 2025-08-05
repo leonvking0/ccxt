@@ -3,7 +3,8 @@
 import Exchange from './abstract/backpack.js';
 import { ExchangeError, ArgumentsRequired, InvalidOrder, OrderNotFound, InsufficientFunds, AuthenticationError, RateLimitExceeded, PermissionDenied, BadRequest, BadSymbol, AccountSuspended, InvalidNonce, NotSupported, OnMaintenance } from './base/errors.js';
 import { ed25519 } from './static_dependencies/noble-curves/ed25519.js';
-import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int, OHLCV, Strings, Tickers, Currencies, Transaction, Position, FundingRate, FundingRateHistory, OpenInterest, DepositAddress } from './base/types.js';
+import { Precise } from './base/Precise.js';
+import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int, OHLCV, Strings, Tickers, Currencies, Transaction, Position, FundingRate, FundingRateHistory, OpenInterest, DepositAddress, TradingFees, BorrowInterest } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -49,7 +50,7 @@ export default class backpack extends Exchange {
                 'fetchTime': true,
                 'fetchTrades': true,
                 'fetchTradingFee': false,
-                'fetchTradingFees': false,
+                'fetchTradingFees': true,
                 'fetchWithdrawals': true,
                 'withdraw': true,
                 'fetchPosition': true,
@@ -60,6 +61,9 @@ export default class backpack extends Exchange {
                 'fetchOpenInterest': true,
                 'fetchBorrowRates': true,
                 'fetchBorrowRateHistory': true,
+                'borrowMargin': true,
+                'repayMargin': true,
+                'fetchBorrowInterest': true,
             },
             'timeframes': {
                 '1m': '1m',
@@ -2156,6 +2160,153 @@ export default class backpack extends Exchange {
         };
     }
 
+    async borrowMargin (code: string, amount: number, symbol: Str = undefined, params = {}): Promise<Dict> {
+        /**
+         * @method
+         * @name backpack#borrowMargin
+         * @description create a borrow order on the exchange
+         * @see https://docs.backpack.exchange/#tag/Borrow-Lend/operation/execute_borrow_lend
+         * @param {string} code unified currency code of the currency to borrow
+         * @param {float} amount the amount to borrow
+         * @param {string} symbol not used by backpack, but kept for compatibility
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [margin loan structure]{@link https://docs.ccxt.com/#/?id=margin-loan-structure}
+         */
+        await this.loadMarkets ();
+        const currency = this.currency (code);
+        const request: Dict = {
+            'symbol': currency['id'],
+            'quantity': this.currencyToPrecision (code, amount),
+            'side': 'Borrow',
+        };
+        const response = await this.privatePostBorrowLend (this.extend (request, params));
+        //
+        //     {
+        //         // Response is usually empty on success
+        //     }
+        //
+        return this.parseMarginLoan (response, currency);
+    }
+
+    async repayMargin (code: string, amount: Num = undefined, symbol: Str = undefined, params = {}): Promise<Dict> {
+        /**
+         * @method
+         * @name backpack#repayMargin
+         * @description repay a borrow order on the exchange
+         * @see https://docs.backpack.exchange/#tag/Borrow-Lend/operation/execute_borrow_lend
+         * @param {string} code unified currency code of the currency to repay
+         * @param {float} amount the amount to repay
+         * @param {string} symbol not used by backpack, but kept for compatibility
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [margin loan structure]{@link https://docs.ccxt.com/#/?id=margin-loan-structure}
+         */
+        await this.loadMarkets ();
+        const currency = this.currency (code);
+        const request: Dict = {
+            'symbol': currency['id'],
+            'quantity': this.currencyToPrecision (code, amount),
+            'side': 'Lend',
+        };
+        const response = await this.privatePostBorrowLend (this.extend (request, params));
+        //
+        //     {
+        //         // Response is usually empty on success
+        //     }
+        //
+        return this.parseMarginLoan (response, currency);
+    }
+
+    parseMarginLoan (loan: Dict, currency: Currency = undefined): Dict {
+        //
+        // Backpack returns empty response on success for borrow/lend operations
+        // We'll construct a basic response structure
+        //
+        const timestamp = this.milliseconds ();
+        return {
+            'id': undefined,
+            'currency': currency?.['code'],
+            'amount': undefined,
+            'symbol': undefined,
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'info': loan,
+        };
+    }
+
+    async fetchBorrowInterest (code: Str = undefined, symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}): Promise<BorrowInterest[]> {
+        /**
+         * @method
+         * @name backpack#fetchBorrowInterest
+         * @description fetch the interest owed by the user for borrowing currency for margin trading
+         * @see https://docs.backpack.exchange/#tag/History/operation/get_interest_history
+         * @param {string} code unified currency code
+         * @param {string} symbol not used by backpack, but kept for compatibility
+         * @param {int} [since] the earliest time in ms to fetch interest history for
+         * @param {int} [limit] the maximum number of structures to retrieve
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object[]} a list of [borrow interest structures]{@link https://docs.ccxt.com/#/?id=borrow-interest-structure}
+         */
+        await this.loadMarkets ();
+        const request: Dict = {};
+        let currency = undefined;
+        if (code !== undefined) {
+            currency = this.currency (code);
+            request['symbol'] = currency['id'];
+        }
+        if (since !== undefined) {
+            request['from'] = since;
+        }
+        if (limit !== undefined) {
+            request['limit'] = limit;
+        }
+        const response = await this.wapiGetHistoryInterest (this.extend (request, params));
+        //
+        //     [
+        //         {
+        //             "id": "123456789",
+        //             "symbol": "USDC",
+        //             "side": "Borrow",
+        //             "amount": "0.05",
+        //             "timestamp": 1700000000000
+        //         }
+        //     ]
+        //
+        return this.parseBorrowInterests (response, undefined);
+    }
+
+    parseBorrowInterests (borrowInterests: Dict[], market = undefined): BorrowInterest[] {
+        const result: BorrowInterest[] = [];
+        for (let i = 0; i < borrowInterests.length; i++) {
+            result.push (this.parseBorrowInterest (borrowInterests[i], market));
+        }
+        return result;
+    }
+
+    parseBorrowInterest (info: Dict, market = undefined): BorrowInterest {
+        //
+        //     {
+        //         "id": "123456789",
+        //         "symbol": "USDC",
+        //         "side": "Borrow",
+        //         "amount": "0.05",
+        //         "timestamp": 1700000000000
+        //     }
+        //
+        const currencyId = this.safeString (info, 'symbol');
+        const timestamp = this.safeInteger (info, 'timestamp');
+        return {
+            'symbol': undefined,
+            'marginMode': 'cross',
+            'currency': this.safeCurrencyCode (currencyId),
+            'interest': this.safeNumber (info, 'amount'),
+            'interestRate': undefined,
+            'amountBorrowed': undefined,
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'info': info,
+        };
+    }
+
     /**
      * @method
      * @name backpack#fetchDepositAddress
@@ -2210,5 +2361,59 @@ export default class backpack extends Exchange {
             'network': this.networkIdToCode (networkId),
             'info': depositAddress,
         };
+    }
+
+    async fetchTradingFees (params = {}): Promise<TradingFees> {
+        /**
+         * @method
+         * @name backpack#fetchTradingFees
+         * @description fetch the trading fees for a market
+         * @see https://docs.backpack.exchange/#tag/Account/operation/get_account
+         * @param {object} [params] extra parameters specific to the exchange API endpoint
+         * @returns {object} a [fee structure]{@link https://docs.ccxt.com/#/?id=fee-structure}
+         */
+        await this.loadMarkets ();
+        const response = await this.privateGetAccount (params);
+        //
+        //     {
+        //         "autoBorrowSettlements": true,
+        //         "autoLend": true,
+        //         "autoRealizePnl": true,
+        //         "autoRepayBorrows": true,
+        //         "borrowLimit": "10000",
+        //         "futuresMakerFee": "5",
+        //         "futuresTakerFee": "10",
+        //         "leverageLimit": "20",
+        //         "limitOrders": 0,
+        //         "liquidating": false,
+        //         "positionLimit": "100000",
+        //         "spotMakerFee": "0",
+        //         "spotTakerFee": "20",
+        //         "triggerOrders": 0
+        //     }
+        //
+        const spotMakerString = this.safeString (response, 'spotMakerFee');
+        const spotTakerString = this.safeString (response, 'spotTakerFee');
+        const futuresMakerString = this.safeString (response, 'futuresMakerFee');
+        const futuresTakerString = this.safeString (response, 'futuresTakerFee');
+        // Convert basis points to decimal (divide by 10000)
+        const spotMaker = this.parseNumber (Precise.stringDiv (spotMakerString, '10000'));
+        const spotTaker = this.parseNumber (Precise.stringDiv (spotTakerString, '10000'));
+        const futuresMaker = this.parseNumber (Precise.stringDiv (futuresMakerString, '10000'));
+        const futuresTaker = this.parseNumber (Precise.stringDiv (futuresTakerString, '10000'));
+        const result: Dict = {
+            'trading': {
+                'maker': spotMaker,
+                'taker': spotTaker,
+            },
+        };
+        // Add futures fees if they exist
+        if ((futuresMakerString !== undefined) || (futuresTakerString !== undefined)) {
+            result['futures'] = {
+                'maker': futuresMaker,
+                'taker': futuresTaker,
+            };
+        }
+        return result;
     }
 }

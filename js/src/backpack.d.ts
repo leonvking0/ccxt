@@ -1,5 +1,5 @@
 import Exchange from './abstract/backpack.js';
-import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int, OHLCV, Strings, Tickers, Currencies, Transaction, Position, FundingRate, FundingRateHistory, OpenInterest, DepositAddress } from './base/types.js';
+import type { Int, OrderSide, Balances, OrderType, Trade, Order, Str, Ticker, OrderBook, Market, Currency, Num, Dict, int, OHLCV, Strings, Tickers, Currencies, Transaction, Position, FundingRate, FundingRateHistory, OpenInterest, DepositAddress, TradingFees, BorrowInterest } from './base/types.js';
 /**
  * @class backpack
  * @augments Exchange
@@ -139,6 +139,12 @@ export default class backpack extends Exchange {
      */
     fetchBorrowRateHistory(code: string, since?: Int, limit?: Int, params?: {}): Promise<Dict[]>;
     parseBorrowRate(borrowRate: Dict, currency?: Currency): Dict;
+    borrowMargin(code: string, amount: number, symbol?: Str, params?: {}): Promise<Dict>;
+    repayMargin(code: string, amount?: Num, symbol?: Str, params?: {}): Promise<Dict>;
+    parseMarginLoan(loan: Dict, currency?: Currency): Dict;
+    fetchBorrowInterest(code?: Str, symbol?: Str, since?: Int, limit?: Int, params?: {}): Promise<BorrowInterest[]>;
+    parseBorrowInterests(borrowInterests: Dict[], market?: any): BorrowInterest[];
+    parseBorrowInterest(info: Dict, market?: any): BorrowInterest;
     /**
      * @method
      * @name backpack#fetchDepositAddress
@@ -151,4 +157,5 @@ export default class backpack extends Exchange {
      */
     fetchDepositAddress(code: string, params?: {}): Promise<DepositAddress>;
     parseDepositAddress(depositAddress: Dict, currency?: Currency): DepositAddress;
+    fetchTradingFees(params?: {}): Promise<TradingFees>;
 }
