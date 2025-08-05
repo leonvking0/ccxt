@@ -130,6 +130,7 @@ export default class backpack extends Exchange {
                     },
                     'post': {
                         'orders': 1,  // single and batch orders
+                        'orders/execute': 1,  // alias for orders endpoint
                         'capital/dust/convert': 1,
                         'borrowLend': 1,
                     },
@@ -213,6 +214,7 @@ export default class backpack extends Exchange {
                     'GET:history/settlement': 'settlementHistoryQueryAll',
                     'GET:capital/deposit/address': 'depositAddressQuery',
                     'POST:orders': 'orderExecute',
+                    'POST:orders/execute': 'orderExecute',
                     'POST:borrowLend': 'borrowLendExecute',
                     'POST:capital/withdraw': 'withdraw',
                     'DELETE:order': 'orderCancel',
@@ -323,19 +325,20 @@ export default class backpack extends Exchange {
         const base = this.safeCurrencyCode (baseId);
         const quote = this.safeCurrencyCode (quoteId);
         const marketType = this.safeString (market, 'marketType');
-        const spot = (marketType === 'SPOT');
-        const futures = (marketType === 'FUTURES' || marketType === 'PERP');
+        const marketTypeUpper = marketType ? marketType.toUpperCase () : '';
+        const spot = (marketTypeUpper === 'SPOT');
+        const futures = (marketTypeUpper === 'FUTURES' || marketTypeUpper === 'PERP');
         const symbol = base + '/' + quote + (futures ? ':' + quote : '');
         const maker = this.safeNumber (market, 'makerFee');
         const taker = this.safeNumber (market, 'takerFee');
         // Extract filters for price and quantity
-        const filters = this.safeDict (market, 'filters', {});
-        const priceFilter = this.safeDict (filters, 'price', {});
-        const quantityFilter = this.safeDict (filters, 'quantity', {});
+        const filters = this.safeValue (market, 'filters', {});
+        const priceFilter = this.safeValue (filters, 'price', {});
+        const quantityFilter = this.safeValue (filters, 'quantity', {});
         const tickSize = this.safeString (priceFilter, 'tickSize');
         const stepSize = this.safeString (quantityFilter, 'stepSize');
-        const minQuantity = this.safeString (quantityFilter, 'minQuantity');
-        const maxQuantity = this.safeString (quantityFilter, 'maxQuantity');
+        const minOrderSize = this.safeString (quantityFilter, 'minQuantity');
+        const maxOrderSize = this.safeString (quantityFilter, 'maxQuantity');
         return this.safeMarketStructure ({
             'id': id,
             'symbol': symbol,
@@ -367,8 +370,8 @@ export default class backpack extends Exchange {
             },
             'limits': {
                 'amount': {
-                    'min': this.safeNumber2 (market, 'minOrderSize', minQuantity),
-                    'max': this.safeNumber2 (market, 'maxOrderSize', maxQuantity),
+                    'min': this.parseNumber (minOrderSize),
+                    'max': this.parseNumber (maxOrderSize),
                 },
                 'price': {
                     'min': this.safeNumber (priceFilter, 'minPrice'),
@@ -1072,7 +1075,7 @@ export default class backpack extends Exchange {
         request['timeInForce'] = timeInForce;
         // The API expects an array for the batch endpoint
         const requestArray = [ this.extend (request, params) ];
-        const responseArray = await this.privatePostOrders (requestArray);
+        const responseArray = await this.privatePostOrdersExecute (requestArray);
         // Response is an array since we sent a batch
         const response = this.safeDict (responseArray, 0);
         //
@@ -1323,6 +1326,9 @@ export default class backpack extends Exchange {
         const status = this.parseOrderStatus (this.safeString (order, 'status'));
         const timeInForce = this.safeString (order, 'timeInForce');
         const postOnly = this.safeBool (order, 'postOnly');
+        // Handle trigger price for stop and take profit orders
+        const triggerPrice = this.safeString (order, 'triggerPrice');
+        const stopPrice = (type === 'stopmarket' || type === 'stoplimit' || type === 'takeprofitmarket' || type === 'takeprofitlimit') ? triggerPrice : undefined;
         return this.safeOrder ({
             'id': id,
             'clientOrderId': clientOrderId,
@@ -1337,8 +1343,8 @@ export default class backpack extends Exchange {
             'postOnly': postOnly,
             'side': side,
             'price': price,
-            'stopPrice': undefined,
-            'triggerPrice': undefined,
+            'stopPrice': stopPrice,
+            'triggerPrice': triggerPrice,
             'amount': amount,
             'cost': cost,
             'filled': filled,

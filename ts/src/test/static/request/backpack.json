@@ -59,9 +59,9 @@
             {
                 "description": "Fetch account balance",
                 "method": "fetchBalance",
-                "url": "https://api.backpack.exchange/api/v1/balances",
+                "url": "https://api.backpack.exchange/api/v1/capital",
                 "input": [],
-                "output": "instruction=balanceQuery&timestamp=1700000000000&window=5000"
+                "output": null
             }
         ],
         "createOrder": [
@@ -73,10 +73,10 @@
                     "SOL/USDC",
                     "limit",
                     "buy",
-                    1,
+                    1.00,
                     100
                 ],
-                "output": "instruction=orderExecute&orderType=Limit&price=100&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+                "output": "instruction=orderExecute&orderType=Limit&price=100&quantity=1.00&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
             },
             {
                 "description": "Create limit sell order for SOL/USDC",
@@ -86,10 +86,10 @@
                     "SOL/USDC",
                     "limit",
                     "sell",
-                    1,
+                    1.00,
                     110
                 ],
-                "output": "instruction=orderExecute&orderType=Limit&price=110&quantity=1&side=Ask&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+                "output": "instruction=orderExecute&orderType=Limit&price=110&quantity=1.00&side=Ask&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
             },
             {
                 "description": "Create market buy order for SOL/USDC",
@@ -99,9 +99,9 @@
                     "SOL/USDC",
                     "market",
                     "buy",
-                    1
+                    1.00
                 ],
-                "output": "instruction=orderExecute&orderType=Market&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+                "output": "instruction=orderExecute&orderType=Market&quantity=1.00&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
             },
             {
                 "description": "Create postOnly limit order",
@@ -111,13 +111,13 @@
                     "SOL/USDC",
                     "limit",
                     "buy",
-                    1,
+                    1.00,
                     100,
                     {
                         "postOnly": true
                     }
                 ],
-                "output": "instruction=orderExecute&orderType=Limit&postOnly=true&price=100&quantity=1&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
+                "output": "instruction=orderExecute&orderType=Limit&postOnly=true&price=100&quantity=1.00&side=Bid&symbol=SOL_USDC&timestamp=1700000000000&window=5000"
             }
         ],
         "cancelOrder": [

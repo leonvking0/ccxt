@@ -36,6 +36,7 @@ interface Exchange {
     privateGetFills (params?: {}): Promise<implicitReturnType>;
     privateGetPositions (params?: {}): Promise<implicitReturnType>;
     privatePostOrders (params?: {}): Promise<implicitReturnType>;
+    privatePostOrdersExecute (params?: {}): Promise<implicitReturnType>;
     privatePostCapitalDustConvert (params?: {}): Promise<implicitReturnType>;
     privatePostBorrowLend (params?: {}): Promise<implicitReturnType>;
     privatePutAccount (params?: {}): Promise<implicitReturnType>;

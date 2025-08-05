@@ -8,45 +8,60 @@
                 "baseSymbol": "SOL",
                 "quoteSymbol": "USDC",
                 "marketType": "Spot",
-                "baseDecimals": 9,
-                "quoteDecimals": 6,
-                "minOrderSize": "0.01",
-                "maxOrderSize": "100000",
+                "filters": {
+                    "price": {
+                        "tickSize": "0.01",
+                        "minPrice": "0.01"
+                    },
+                    "quantity": {
+                        "stepSize": "0.01",
+                        "minQuantity": "0.01",
+                        "maxQuantity": "100000"
+                    }
+                },
                 "minNotional": "1",
                 "makerFee": "0.0002",
-                "takerFee": "0.0005",
-                "tickSize": "0.01",
-                "stepSize": "0.01"
+                "takerFee": "0.0005"
             },
             {
                 "symbol": "BTC_USDC",
                 "baseSymbol": "BTC",
                 "quoteSymbol": "USDC",
                 "marketType": "Spot",
-                "baseDecimals": 8,
-                "quoteDecimals": 6,
-                "minOrderSize": "0.00001",
-                "maxOrderSize": "1000",
+                "filters": {
+                    "price": {
+                        "tickSize": "0.1",
+                        "minPrice": "0.1"
+                    },
+                    "quantity": {
+                        "stepSize": "0.00001",
+                        "minQuantity": "0.00001",
+                        "maxQuantity": "1000"
+                    }
+                },
                 "minNotional": "1",
                 "makerFee": "0.0002",
-                "takerFee": "0.0005",
-                "tickSize": "0.1",
-                "stepSize": "0.00001"
+                "takerFee": "0.0005"
             },
             {
                 "symbol": "SOL_USDC_PERP",
                 "baseSymbol": "SOL",
                 "quoteSymbol": "USDC",
                 "marketType": "Futures",
-                "baseDecimals": 9,
-                "quoteDecimals": 6,
-                "minOrderSize": "0.01",
-                "maxOrderSize": "10000",
+                "filters": {
+                    "price": {
+                        "tickSize": "0.01",
+                        "minPrice": "0.01"
+                    },
+                    "quantity": {
+                        "stepSize": "0.01",
+                        "minQuantity": "0.01",
+                        "maxQuantity": "10000"
+                    }
+                },
                 "minNotional": "1",
                 "makerFee": "0.0002",
                 "takerFee": "0.0005",
-                "tickSize": "0.01",
-                "stepSize": "0.01",
                 "contractSize": "1",
                 "openInterestLimit": "1000000"
             }
